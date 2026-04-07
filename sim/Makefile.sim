@@ -1,0 +1,21 @@
+# Ορισμός του > ως separator αντί για Tab
+.RECIPEPREFIX = >
+
+VERILATOR = verilator
+# Flags: --cc (C++ output), --exe (build executable), --build (auto-make)
+VERILATOR_FLAGS = -Wall --cc --exe --build
+
+# Αρχεία εισόδου (Βεβαιώσου ότι τα paths είναι σωστά)
+V_SRC = ../src/fpga/spi_slave_bfm.v
+CPP_SRC = spi_slave_bfm.cpp
+
+all: sim_executable
+
+sim_executable:
+> $(VERILATOR) $(VERILATOR_FLAGS) $(V_SRC) $(CPP_SRC) -o sim_executable -I../src/fpga
+> @echo "------------------------------------------------------------"
+> @echo "Build complete! Binary located at: obj_dir/sim_executable"
+> @echo "------------------------------------------------------------"
+
+clean:
+> rm -rf obj_dir

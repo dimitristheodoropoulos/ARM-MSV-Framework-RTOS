@@ -1,0 +1,13 @@
+# Python virtual environment
+venv/
+.env
+
+# Build artifacts
+*.o
+*.elf
+*.bin
+obj_dir/
+
+# Editor settings
+.vscode/
+.idea/
