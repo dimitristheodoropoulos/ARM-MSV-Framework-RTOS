@@ -1,13 +1,20 @@
-# Python virtual environment
-venv/
-.env
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+*.so
 
 # Build artifacts
+firmware.elf
 *.o
-*.elf
-*.bin
-obj_dir/
+*.d
 
-# Editor settings
+# IDE
 .vscode/
 .idea/
+
+# QEMU logs
+*.log
+# Simulation build artifacts
+sim/obj_dir/
