@@ -2,6 +2,7 @@
 #include "task.h"
 #include "uart.h"
 #include "shell.h"
+#include "tinyml.h"          /* <-- NEW: TinyML header */
 #include <string.h>
 
 #define REBOOT_MAGIC_WDT    0xDEADBEEF
@@ -14,6 +15,9 @@ extern volatile uint8_t cli_is_typing;
 TaskHandle_t xCLI_Handle = NULL;
 TaskHandle_t xAI_Handle = NULL;
 TaskHandle_t xWDT_Handle = NULL;
+
+/* NEW: global variable for latest TinyML prediction */
+volatile float latest_prediction = 0.0f;
 
 typedef struct {
     uint32_t magic;
@@ -36,7 +40,7 @@ void update_log(uint32_t magic, const char* msg) {
 }
 
 void __attribute__((used)) HardFault_Handler(void) {
-    __asm volatile ("cpsid i"); 
+    __asm volatile ("cpsid i");
     if (persistent_log.magic == REBOOT_MAGIC_CLEAN) {
         update_log(REBOOT_MAGIC_FAULT, "CPU HardFault (Invalid Access)");
     }
@@ -70,47 +74,54 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
 
 void vTaskWatchdogMonitor(void *pvParameters) {
     (void)pvParameters;
-    system_health_flags = ALL_HEALTHY; 
+    system_health_flags = ALL_HEALTHY;
     for(;;) {
-        if (!cli_is_typing) uart_putc('.'); 
+        if (!cli_is_typing) uart_putc('.');
         if ((system_health_flags & ALL_HEALTHY) == ALL_HEALTHY) {
-            system_health_flags = 0; 
+            system_health_flags = 0;
         } else {
             update_log(REBOOT_MAGIC_WDT, "Task Hang (Heartbeat Timeout)");
             vTaskDelay(pdMS_TO_TICKS(100));
-            HardFault_Handler(); 
+            HardFault_Handler();
         }
-        vTaskDelay(pdMS_TO_TICKS(5000)); 
+        vTaskDelay(pdMS_TO_TICKS(5000));
     }
 }
 
 void vTaskCLI(void *pvParameters) {
+    (void)pvParameters;
     char cmd_buf[64];
     for(;;) {
-        system_health_flags |= HEALTH_CLI; 
+        system_health_flags |= HEALTH_CLI;
         uart_puts_safe("rtos_msv> ");
-        shell_readline(cmd_buf, 64); 
+        shell_readline(cmd_buf, 64);
         if (cmd_buf[0] != '\0') shell_process(cmd_buf);
-        vTaskDelay(pdMS_TO_TICKS(50)); 
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
 void vTaskPredictiveAI(void *pvParameters) {
+    (void)pvParameters;   /* avoid unused parameter warning */
+
     for(;;) {
-        system_health_flags |= HEALTH_AI; 
-        vTaskDelay(pdMS_TO_TICKS(2000)); 
+        system_health_flags |= HEALTH_AI;
+
+        /* NEW: perform TinyML inference with a dummy sensor value */
+        latest_prediction = ml_predict_next_temp(25.0f);   /* 25°C input */
+
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
 
 int main(void) {
     uart_init();
     check_reboot_reason();
-    
+
     /* Δημιουργία Tasks και ανάθεση στα Handles */
     xTaskCreate(vTaskCLI,             "CLI", 512, NULL, 2, &xCLI_Handle);
     xTaskCreate(vTaskPredictiveAI,    "AI",  256, NULL, 2, &xAI_Handle);
     xTaskCreate(vTaskWatchdogMonitor, "WDT", 256, NULL, 4, &xWDT_Handle);
-    
+
     vTaskStartScheduler();
     return 0;
 }

@@ -20,69 +20,78 @@ def qemu():
         "-kernel", FIRMWARE_PATH
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     
-    # ΠΕΡΙΜΕΝΟΥΜΕ ΠΕΡΙΣΣΟΤΕΡΟ (3.5s): 
-    # Δίνουμε χρόνο στον ESP8266 driver να κάνει timeout και να ηρεμήσει το UART.
+    # Δίνουμε χρόνο στο QEMU να ξεκινήσει και στο firmware να κάνει boot.
     time.sleep(3.5) 
     yield proc
     
     proc.terminate()
     proc.wait()
 
-def send_command(cmd):
-    """Στέλνει εντολή και καθαρίζει το buffer περιμένοντας την απάντηση."""
+def send_command(cmd, timeout=5.0):
+    """
+    Στέλνει μια εντολή στο CLI και επιστρέφει την έξοδο μέχρι το επόμενο προτροπή.
+    Διαβάζει με timeout και ψάχνει το προτροπή στο συσσωρευμένο data.
+    """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(4.0)
+        s.settimeout(timeout)
         s.connect(("127.0.0.1", 4444))
         
-        # 1. FLUSH: Διαβάζουμε όλο το boot "σκουπίδι" μέχρι να δούμε το prompt 'msv>'
-        # Αυτό διασφαλίζει ότι η επόμενη εντολή θα ξεκινήσει από καθαρό έδαφος.
-        initial_data = b""
+        # Flush τυχόν υπολειπόμενα δεδομένα (π.χ. boot messages)
         s.setblocking(False)
         time.sleep(0.2)
         while True:
             try:
                 chunk = s.recv(1024)
-                if not chunk: break
-                initial_data += chunk
+                if not chunk:
+                    break
             except BlockingIOError:
                 break
         s.setblocking(True)
-
-        # 2. SEND: Στέλνουμε την εντολή
-        s.send(f"{cmd}\r\n".encode())
         
-        # 3. READ: Περιμένουμε την απάντηση
-        time.sleep(0.8) 
-        data = s.recv(4096)
+        # Στέλνουμε την εντολή
+        s.sendall(f"{cmd}\r\n".encode())
+        
+        # Διαβάζουμε μέχρι να δούμε το προτροπή στο συσσωρευμένο data
+        data = b""
+        prompt = b"rtos_msv> "
+        start = time.time()
+        
+        while time.time() - start < timeout:
+            try:
+                chunk = s.recv(1024)
+                if not chunk:
+                    break
+                data += chunk
+                if prompt in data:
+                    s.close()
+                    return data.decode(errors='ignore')
+            except socket.timeout:
+                break
+        
         s.close()
-        
-        return data.decode(errors='ignore')
+        # Αν δεν βρέθηκε prompt, επιστρέφουμε ό,τι διαβάστηκε
+        return f"TIMEOUT or incomplete. Received: {data.decode(errors='ignore')}"
     except Exception as e:
         return f"Error: {e}"
 
 # --- TESTS ---
 
 def test_shell_help(qemu):
-    """Επιβεβαιώνει ότι το Help menu περιλαμβάνει το predict"""
     out = send_command("help")
-    # Χρησιμοποιούμε assert σε μικρά γράμματα για μέγιστη συμβατότητα
-    assert "predict" in out.lower(), f"Expected 'predict' in help menu, got: {out}"
+    assert "predict" in out.lower(), f"Expected 'predict' in help, got: {out}"
 
 def test_tinyml_inference(qemu):
-    """Ελέγχει την AI πρόβλεψη"""
     out = send_command("predict")
     assert "[TinyML]" in out
     assert "Predicted" in out
 
 def test_uptime_counter(qemu):
-    """Ελέγχει αν ο SysTick μετράει"""
     out1 = send_command("uptime")
     time.sleep(1.2)
     out2 = send_command("uptime")
     assert out1 != out2
 
 def test_invalid_command(qemu):
-    """Ελέγχει το error handling"""
     out = send_command("random123")
     assert "Unknown command" in out

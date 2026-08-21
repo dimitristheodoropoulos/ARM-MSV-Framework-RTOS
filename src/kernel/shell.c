@@ -3,6 +3,9 @@
 #include "FreeRTOS.h"
 #include "task.h"
 
+/* NEW: access latest prediction from main.c */
+extern volatile float latest_prediction;
+
 extern volatile uint32_t system_health_flags;
 #define HEALTH_CLI    (1 << 0)
 volatile uint8_t cli_is_typing = 0;
@@ -41,12 +44,12 @@ static int str_eq(const char *a, const char *b) {
 void shell_readline(char *buf, int maxlen) {
     int i = 0;
     while (i < maxlen - 1) {
-        system_health_flags |= HEALTH_CLI; 
-        char c = uart_getc(); 
-        if (c == 0) { 
-            if (i == 0) cli_is_typing = 0; 
-            vTaskDelay(pdMS_TO_TICKS(100)); 
-            continue; 
+        system_health_flags |= HEALTH_CLI;
+        char c = uart_getc();
+        if (c == 0) {
+            if (i == 0) cli_is_typing = 0;
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
         }
         cli_is_typing = 1;
         if (c == '\r' || c == '\n') {
@@ -69,12 +72,12 @@ void shell_process(char *cmd) {
     if (str_eq(cmd, "mem")) {
         size_t free_heap = xPortGetFreeHeapSize();
         size_t min_ever = xPortGetMinimumEverFreeHeapSize();
-        
+
         uart_puts_safe("\r\n--- HEAP MEMORY INFO ---\r\n");
         uart_puts_safe("Free now:      "); uart_put_num((uint32_t)free_heap); uart_puts_safe(" bytes\r\n");
         uart_puts_safe("Lifetime min:  "); uart_put_num((uint32_t)min_ever);  uart_puts_safe(" bytes\r\n");
     }
-    
+
     /* --- ΕΝΤΟΛΗ UPTIME --- */
     else if (str_eq(cmd, "uptime")) {
         TickType_t ticks = xTaskGetTickCount();
@@ -120,16 +123,41 @@ void shell_process(char *cmd) {
         uart_puts_safe("low_ai   - AI Task Low Priority\r\n");
         uart_puts_safe("freeze   - Force CLI Hang (WDT Test)\r\n");
         uart_puts_safe("crash    - Force HardFault\r\n");
+        /* NEW: predict command */
+        uart_puts_safe("predict  - TinyML Temperature Prediction\r\n");
     }
 
+    /* --- ΕΝΤΟΛΗ CRASH --- */
     else if (str_eq(cmd, "crash")) {
         uart_puts_safe("[TEST] Forcing Usage Fault...\r\n");
         vTaskDelay(pdMS_TO_TICKS(100));
-        void (*bad_func)(void) = (void *)0x00000002; 
-        bad_func(); 
+        void (*bad_func)(void) = (void *)0x00000002;
+        bad_func();
     }
+
+    /* --- ΕΝΤΟΛΗ FREEZE --- */
     else if (str_eq(cmd, "freeze")) {
         uart_puts_safe("[TEST] Freezing CLI...\r\n");
-        vTaskSuspend(NULL); 
+        vTaskSuspend(NULL);
+    }
+
+    /* --- NEW: ΤinyML PREDICT --- */
+    else if (str_eq(cmd, "predict")) {
+        uart_puts_safe("\r\n[TinyML] Predicted temperature: ");
+
+        /* Print float as integer + fraction (no printf) */
+        int whole = (int)latest_prediction;
+        int frac  = (int)((latest_prediction - whole) * 100.0f);
+
+        uart_put_num((uint32_t)whole);
+        uart_putc('.');
+        uart_putc('0' + ((frac / 10) % 10));
+        uart_putc('0' + (frac % 10));
+        uart_puts_safe(" C\r\n");
+    }
+
+    /* --- NEW: Unknown command fallback --- */
+    else {
+        uart_puts_safe("Unknown command\r\n");
     }
 }
