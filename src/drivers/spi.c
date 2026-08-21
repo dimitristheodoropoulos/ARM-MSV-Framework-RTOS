@@ -2,7 +2,7 @@
  * spi.c — SPI Master Driver
  * ============================================================
  * STM32F4 SPI1 register map (base: 0x40013000)
- * Compatible with LM3S6965 SSI peripheral (base: 0x40008000)
+ * STM32F4-specific SPI1 driver (not compatible with LM3S6965 SSI)
  *
  * Relevant for:
  *   TechBiz — FPGA SPI bridge (spi_slave_bfm.v co-simulation)

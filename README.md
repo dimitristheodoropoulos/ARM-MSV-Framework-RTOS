@@ -2,7 +2,7 @@
 
 A production-oriented embedded systems framework for **ARM Cortex-M3 (LM3S6965)**, combining FreeRTOS-based real-time execution, bare-metal drivers, TinyML inference, watchdog supervision, fault handling, and automated QEMU integration testing.
 
-The **v2.5 production baseline** focuses on reproducible builds, automated verification, CLI observability, and a clean CI workflow.
+The **v2.6 production baseline** focuses on reproducible builds, automated verification, CLI observability, and a clean CI workflow.
 
 ---
 
@@ -167,40 +167,50 @@ The CLI is exposed through TCP port `4444`.
 
 ## 🧪 Automated Verification
 
-The production test suite uses pytest together with QEMU.
+The v2.6 verification baseline uses pytest together with QEMU.
 
 Run the complete integration suite:
 
-```bash
-pytest -q
-```
+    pytest -q
 
-The current v2.5 baseline contains:
+The v2.6 regression baseline contains 17 tests.
 
-```text
-12 tests
-```
+Latest verified result:
+
+    17 passed in 46.91s
 
 The tests cover:
 
-* CLI help
+* CLI functionality
 * Memory reporting
-* Task reporting
+* RTOS task reporting
 * System uptime
-* TinyML prediction
-* AI priority boost
-* AI priority reduction
+* TinyML inference
+* AI task-priority control
 * Invalid-command handling
+* GNSS/NMEA parsing
+* GNSS GGA parsing
+* GNSS RMC parsing
+* Watchdog/software recovery
+* HardFault recovery
 
-The shared QEMU fixture and command transport are implemented in:
+## 🛡️ Recovery and Watchdog Verification
 
-```text
-tests/conftest.py
-```
+The project implements a software health-monitor recovery path using
+the ARM Cortex-M system reset mechanism (AIRCR), with persistent
+post-mortem information retained through the `.noinit` RAM section.
 
----
+The LM3S6965 hardware watchdog driver is implemented as a register-level
+driver according to the target peripheral model. A dedicated QEMU
+experiment verified watchdog register access and counter expiry.
 
-## 🔄 Continuous Integration
+However, QEMU's `lm3s6965evb` model does not provide a reliable
+firmware-level Cortex-M reboot when the watchdog expires. Therefore,
+hardware watchdog reset is not claimed as a verified QEMU recovery
+mechanism.
+
+The verified recovery mechanism for the v2.6 baseline is the software
+health-monitor → fault/recovery handler → AIRCR system reset path.
 
 GitHub Actions automatically performs:
 
@@ -239,7 +249,7 @@ Generated Verilator build artifacts are intentionally excluded from Git.
 
 ---
 
-## 📊 v2.5 Production Baseline
+## 📊 v2.6 Production Baseline
 
 The current baseline has been locally validated with:
 
@@ -281,8 +291,8 @@ The architecture is particularly relevant to **automotive, industrial, robotics,
 
 ## 📌 Project Status
 
-**Current branch:** `feature/v2.5-production-baseline`
+**Current branch:** `feature/v2.6-peripheral-verification`
 
-**Current milestone:** v2.5 Production Baseline
+**Current milestone:** v2.6 Production Baseline
 
 The baseline currently establishes a clean firmware build, automated QEMU integration testing, and CI verification. Further production hardening can be added incrementally without destabilizing the validated baseline.

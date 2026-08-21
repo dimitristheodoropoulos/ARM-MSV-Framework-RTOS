@@ -1,6 +1,7 @@
 #include "shell.h"
 #include "uart.h"
 #include "FreeRTOS.h"
+#include "nmea_parser.h"
 #include "task.h"
 
 /* NEW: access latest prediction from main.c */
@@ -125,6 +126,7 @@ void shell_process(char *cmd) {
         uart_puts_safe("crash    - Force HardFault\r\n");
         /* NEW: predict command */
         uart_puts_safe("predict  - TinyML Temperature Prediction\r\n");
+        uart_puts_safe("nmea     - GNSS NMEA parser sample\r\n");
     }
 
     /* --- ΕΝΤΟΛΗ CRASH --- */
@@ -142,6 +144,10 @@ void shell_process(char *cmd) {
     }
 
     /* --- NEW: ΤinyML PREDICT --- */
+    else if (str_eq(cmd, "nmea")) {
+        nmea_print_sample();
+    }
+
     else if (str_eq(cmd, "predict")) {
         uart_puts_safe("\r\n[TinyML] Predicted temperature: ");
 

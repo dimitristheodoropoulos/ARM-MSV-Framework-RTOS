@@ -260,7 +260,12 @@ int nmea_parse_rmc(const char *sentence, NMEA_RMC *out)
     if (!get_field(sentence, buf, sizeof(buf), 9)) return 0;
     out->day   = str_to_int(buf,     2);
     out->month = str_to_int(buf + 2, 2);
-    out->year  = str_to_int(buf + 4, 2) + 2000;
+
+    /* NMEA uses a two-digit year. Apply a conventional 80/20 pivot. */
+    {
+        int yy = str_to_int(buf + 4, 2);
+        out->year = (yy >= 80) ? (1900 + yy) : (2000 + yy);
+    }
 
     out->valid = 1;
     return 1;
@@ -277,13 +282,36 @@ static void print_int(int val)
 
 static void print_float(float val, int decimals)
 {
-    if (val < 0.0f) { uart_putc('-'); val = -val; }
-    int i = (int)val;
-    print_int(i);
+    if (decimals <= 0) {
+        int rounded = (int)(val + (val >= 0.0f ? 0.5f : -0.5f));
+        print_int(rounded);
+        return;
+    }
+
+    int negative = 0;
+    if (val < 0.0f) {
+        negative = 1;
+        val = -val;
+    }
+
+    int scale = 1;
+    for (int d = 0; d < decimals; d++)
+        scale *= 10;
+
+    int scaled = (int)(val * scale + 0.000001f);
+    int whole  = scaled / scale;
+    int frac   = scaled % scale;
+
+    if (negative)
+        uart_putc('-');
+
+    print_int(whole);
     uart_putc('.');
+
+    int divisor = scale / 10;
     for (int d = 0; d < decimals; d++) {
-        val = (val - (int)val) * 10.0f;
-        uart_putc('0' + (int)val);
+        uart_putc('0' + ((frac / divisor) % 10));
+        divisor /= 10;
     }
 }
 
