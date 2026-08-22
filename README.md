@@ -10,49 +10,49 @@ The **v2.6 production baseline** focuses on reproducible builds, automated verif
 
 ### 1. Real-Time RTOS
 
-- FreeRTOS-based preemptive multitasking.
-- CLI, AI inference, and system-monitor tasks.
-- Runtime AI task-priority control.
-- Task-state and priority observability through the CLI.
-- System uptime monitoring.
+* FreeRTOS-based preemptive multitasking.
+* CLI, AI inference, and system-monitor tasks.
+* Runtime AI task-priority control.
+* Task-state and priority observability through the CLI.
+* System uptime monitoring.
 
 ### 2. High-Reliability and Self-Healing
 
-- Watchdog supervision for task hangs and heartbeat failures.
-- Fault recovery through ARM Cortex-M system reset mechanisms.
-- Persistent post-mortem information using a `.noinit` RAM section.
-- Custom HardFault handling for invalid processor states and memory accesses.
-- CLI commands for deliberately exercising fault-recovery paths.
+* Watchdog supervision for task hangs and heartbeat failures.
+* Fault recovery through ARM Cortex-M system reset mechanisms.
+* Persistent post-mortem information using a `.noinit` RAM section.
+* Custom HardFault handling for invalid processor states and memory accesses.
+* CLI commands for deliberately exercising fault-recovery paths.
 
 ### 3. Edge AI / TinyML
 
-- Lightweight C-based TinyML inference.
-- Linear-regression model for predictive-maintenance temperature estimation.
-- Runtime prediction through the `predict` CLI command.
-- Designed for execution without cloud connectivity.
+* Lightweight C-based TinyML inference.
+* Linear-regression model for predictive-maintenance temperature estimation.
+* Runtime prediction through the `predict` CLI command.
+* Designed for execution without cloud connectivity.
 
 ### 4. Bare-Metal Drivers
 
 Register-level embedded drivers for:
 
-- UART
-- GPIO
-- I2C
-- SPI
-- Timer
-- Watchdog
-- ESP8266 interface
-- GNSS/NMEA parsing
+* UART
+* GPIO
+* I2C
+* SPI
+* Timer
+* Watchdog
+* ESP8266 interface
+* GNSS/NMEA parsing
 
 The firmware is designed around direct hardware access without a vendor HAL.
 
 ### 5. Verification and Emulation
 
-- ARM Cortex-M3 firmware emulation with QEMU.
-- Telnet/serial CLI integration testing.
-- Pytest-based black-box verification.
-- Verilator-based SPI slave simulation.
-- Automated GitHub Actions build and integration-test pipeline.
+* ARM Cortex-M3 firmware emulation with QEMU.
+* Telnet/serial CLI integration testing.
+* Pytest-based black-box verification.
+* Verilator-based SPI slave simulation.
+* Automated GitHub Actions build and integration-test pipeline.
 
 ---
 
@@ -82,7 +82,7 @@ ARM-MSV-Framework-RTOS/
 ├── Makefile                    # Firmware build system
 ├── setup_rtos.sh               # RTOS setup helper
 └── README.md
-````
+```
 
 ---
 
@@ -169,15 +169,19 @@ The CLI is exposed through TCP port `4444`.
 
 The v2.6 verification baseline uses pytest together with QEMU.
 
-Run the complete integration suite:
+Run the complete regression suite:
 
-    pytest -q
+```bash
+pytest -q
+```
 
-The v2.6 regression baseline contains 17 tests.
+The v2.6 regression baseline contains **17 tests**.
 
 Latest verified result:
 
-    17 passed in 46.91s
+```text
+17 passed in 46.19s
+```
 
 The tests cover:
 
@@ -194,23 +198,17 @@ The tests cover:
 * Watchdog/software recovery
 * HardFault recovery
 
+---
+
 ## 🛡️ Recovery and Watchdog Verification
 
-The project implements a software health-monitor recovery path using
-the ARM Cortex-M system reset mechanism (AIRCR), with persistent
-post-mortem information retained through the `.noinit` RAM section.
+The project implements a software health-monitor recovery path using the ARM Cortex-M system reset mechanism (AIRCR), with persistent post-mortem information retained through the `.noinit` RAM section.
 
-The LM3S6965 hardware watchdog driver is implemented as a register-level
-driver according to the target peripheral model. A dedicated QEMU
-experiment verified watchdog register access and counter expiry.
+The LM3S6965 hardware watchdog driver is implemented as a register-level driver according to the target peripheral model. A dedicated QEMU experiment verified watchdog register access and counter expiry.
 
-However, QEMU's `lm3s6965evb` model does not provide a reliable
-firmware-level Cortex-M reboot when the watchdog expires. Therefore,
-hardware watchdog reset is not claimed as a verified QEMU recovery
-mechanism.
+However, QEMU's `lm3s6965evb` model does not provide a reliable firmware-level Cortex-M reboot when the watchdog expires. Therefore, hardware watchdog reset is not claimed as a verified QEMU recovery mechanism.
 
-The verified recovery mechanism for the v2.6 baseline is the software
-health-monitor → fault/recovery handler → AIRCR system reset path.
+The verified recovery mechanism for the v2.6 baseline is the software health-monitor → fault/recovery handler → AIRCR system reset path.
 
 GitHub Actions automatically performs:
 
@@ -255,7 +253,7 @@ The current baseline has been locally validated with:
 
 ```text
 Firmware build:          PASS
-QEMU integration tests:  12/12 PASS
+QEMU integration tests:  17/17 PASS
 Git working tree:        CLEAN
 ```
 
@@ -263,6 +261,7 @@ The firmware build currently reports approximately:
 
 ```text
 text    data    bss     dec     hex
+
 26072   84      10644   36800   8fc0
 ```
 
@@ -291,7 +290,7 @@ The architecture is particularly relevant to **automotive, industrial, robotics,
 
 ## 📌 Project Status
 
-**Current branch:** `feature/v2.6-peripheral-verification`
+**Current branch:** `main`
 
 **Current milestone:** v2.6 Production Baseline
 
