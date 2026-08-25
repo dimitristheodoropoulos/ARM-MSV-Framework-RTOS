@@ -47,6 +47,21 @@ def drain_socket(sock):
             break
 
 
+def parse_stack_hwm(output):
+    """Parse the STACK HIGH-WATER MARK table into {task: hwm}."""
+    values = {}
+
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) == 2 and parts[0] in {"CLI", "IDLE", "AI", "WDT"}:
+            try:
+                values[parts[0]] = int(parts[1])
+            except ValueError:
+                pass
+
+    return values
+
+
 def send_command(sock, command, timeout=5):
     # Remove stale prompt/echo bytes before issuing the next command.
     drain_socket(sock)
@@ -180,6 +195,27 @@ def main():
                 raise AssertionError(
                     "FAIL: uptime command did not return uptime."
                 )
+
+            stack = send_command(sock, "stack")
+
+            print("--- STACK ---")
+            print(stack)
+
+            hwm = parse_stack_hwm(stack)
+            required_tasks = {"CLI", "IDLE", "AI", "WDT"}
+
+            if set(hwm) != required_tasks:
+                raise AssertionError(
+                    f"FAIL: incomplete stack HWM data: {hwm!r}"
+                )
+
+            for task_name, value in hwm.items():
+                if value <= 0:
+                    raise AssertionError(
+                        f"FAIL: invalid stack HWM for {task_name}: {value}"
+                    )
+
+            print(f"PASS: stack HWM values valid: {hwm}")
 
             print("[7/8] Verifying AI priority transitions...")
 

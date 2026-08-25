@@ -12,6 +12,8 @@ volatile uint8_t cli_is_typing = 0;
 
 /* Εισαγωγή των handles από τη main */
 extern TaskHandle_t xAI_Handle;
+extern TaskHandle_t xCLI_Handle;
+extern TaskHandle_t xWDT_Handle;
 
 /* * Βοηθητική συνάρτηση για εκτύπωση ακεραίων στη UART.
  * Μετατρέπει τον αριθμό σε string χαρακτήρα-χαρακτήρα.
@@ -107,6 +109,31 @@ void shell_process(char *cmd) {
         }
     }
 
+    /* --- ΕΝΤΟΛΗ STACK HWM --- */
+    else if (str_eq(cmd, "stack")) {
+        TaskHandle_t xIdleHandle = xTaskGetIdleTaskHandle();
+
+        uart_puts_safe("\r\n--- STACK HIGH-WATER MARK ---\r\n");
+        uart_puts_safe("Task          HWM\r\n");
+        uart_puts_safe("------------------\r\n");
+
+        uart_puts_safe("CLI           ");
+        uart_put_num((uint32_t)uxTaskGetStackHighWaterMark(xCLI_Handle));
+        uart_puts_safe("\r\n");
+
+        uart_puts_safe("IDLE          ");
+        uart_put_num((uint32_t)uxTaskGetStackHighWaterMark(xIdleHandle));
+        uart_puts_safe("\r\n");
+
+        uart_puts_safe("AI            ");
+        uart_put_num((uint32_t)uxTaskGetStackHighWaterMark(xAI_Handle));
+        uart_puts_safe("\r\n");
+
+        uart_puts_safe("WDT           ");
+        uart_put_num((uint32_t)uxTaskGetStackHighWaterMark(xWDT_Handle));
+        uart_puts_safe("\r\n");
+    }
+
     /* --- ΕΝΤΟΛΗ PS --- */
     else if (str_eq(cmd, "ps")) {
         char buffer[512];
@@ -120,6 +147,7 @@ void shell_process(char *cmd) {
     else if (str_eq(cmd, "help")) {
         uart_puts_safe("\r\n--- ARM MSV CLI v2.4 ---\r\n");
         uart_puts_safe("ps       - Task Statistics\r\n");
+        uart_puts_safe("stack    - Stack High-Water Marks\r\n");
         uart_puts_safe("mem      - Heap Memory Usage\r\n");
         uart_puts_safe("uptime   - System Uptime\r\n");
         uart_puts_safe("boost_ai - AI Task High Priority\r\n");
