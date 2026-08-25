@@ -3,6 +3,7 @@
 #include "FreeRTOS.h"
 #include "nmea_parser.h"
 #include "task.h"
+#include "health_monitor.h"
 
 /* NEW: access latest prediction from main.c */
 extern volatile float latest_prediction;
@@ -46,6 +47,10 @@ void shell_readline(char *buf, int maxlen) {
         char c = uart_getc();
         if (c == 0) {
             if (i == 0) cli_is_typing = 0;
+
+            /* CLI task is alive while waiting for UART input. */
+            health_monitor_heartbeat(HEALTH_TASK_CLI);
+
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
@@ -104,7 +109,7 @@ void shell_process(char *cmd) {
 
     /* --- ΕΝΤΟΛΗ PS --- */
     else if (str_eq(cmd, "ps")) {
-        char buffer[256];
+        char buffer[512];
         uart_puts_safe("\r\nName          State  Prio  Stack  Num\r\n");
         uart_puts_safe("-------------------------------------\r\n");
         vTaskList(buffer);

@@ -39,6 +39,8 @@
 #define INCLUDE_vTaskDelay                      1
 #define INCLUDE_xTaskGetSchedulerState          1  /* ΑΠΑΡΑΙΤΗΤΟ ΓΙΑ UART_PUTS_SAFE */
 #define INCLUDE_xTaskGetIdleTaskHandle          1  /* ΒΟΗΘΑΕΙ ΣΤΟ vTaskList (PS) */
+#define INCLUDE_uxTaskGetStackHighWaterMark     1
+#define INCLUDE_uxTaskGetStackHighWaterMark2    1
 
 /* --- Cortex-M3 Interrupt Vector Definitions --- */
 #define vPortSVCHandler     SVC_Handler
