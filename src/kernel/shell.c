@@ -7,8 +7,6 @@
 /* NEW: access latest prediction from main.c */
 extern volatile float latest_prediction;
 
-extern volatile uint32_t system_health_flags;
-#define HEALTH_CLI    (1 << 0)
 volatile uint8_t cli_is_typing = 0;
 
 /* Εισαγωγή των handles από τη main */
@@ -45,7 +43,6 @@ static int str_eq(const char *a, const char *b) {
 void shell_readline(char *buf, int maxlen) {
     int i = 0;
     while (i < maxlen - 1) {
-        system_health_flags |= HEALTH_CLI;
         char c = uart_getc();
         if (c == 0) {
             if (i == 0) cli_is_typing = 0;

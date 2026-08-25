@@ -25,6 +25,7 @@ SRCS = $(SRC_DIR)/arch/arm/syscalls.c \
         $(SRC_DIR)/drivers/timer.c \
        $(SRC_DIR)/gnss/nmea_parser.c \
        $(SRC_DIR)/kernel/shell.c \
+       $(SRC_DIR)/kernel/health_monitor.c \
        $(SRC_DIR)/main.c \
        $(RTOS_SOURCE_DIR)/tasks.c \
        $(RTOS_SOURCE_DIR)/queue.c \
