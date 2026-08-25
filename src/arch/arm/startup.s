@@ -30,6 +30,7 @@
 .extern SVC_Handler
 .extern PendSV_Handler
 .extern SysTick_Handler
+.extern UART0_IRQHandler
 
 
 .global _start
@@ -63,6 +64,14 @@ _vectors:
     .word 0                     /* 0x34 Reserved */
     .word PendSV_Handler        /* 0x38 PendSV */
     .word SysTick_Handler       /* 0x3C SysTick */
+
+    /* External interrupt vectors */
+    .word _hang                 /* IRQ0  GPIOA */
+    .word _hang                 /* IRQ1  GPIOB */
+    .word _hang                 /* IRQ2  GPIOC */
+    .word _hang                 /* IRQ3  GPIOD */
+    .word _hang                 /* IRQ4  GPIOE */
+    .word UART0_IRQHandler      /* IRQ5  UART0 */
 
 
 /* ------------------------------------------------------------
