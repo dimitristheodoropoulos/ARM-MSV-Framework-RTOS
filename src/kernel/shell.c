@@ -3,16 +3,17 @@
 #include "FreeRTOS.h"
 #include "nmea_parser.h"
 #include "task.h"
+#include "health_monitor.h"
 
 /* NEW: access latest prediction from main.c */
 extern volatile float latest_prediction;
 
-extern volatile uint32_t system_health_flags;
-#define HEALTH_CLI    (1 << 0)
 volatile uint8_t cli_is_typing = 0;
 
 /* Εισαγωγή των handles από τη main */
 extern TaskHandle_t xAI_Handle;
+extern TaskHandle_t xCLI_Handle;
+extern TaskHandle_t xWDT_Handle;
 
 /* * Βοηθητική συνάρτηση για εκτύπωση ακεραίων στη UART.
  * Μετατρέπει τον αριθμό σε string χαρακτήρα-χαρακτήρα.
@@ -45,10 +46,13 @@ static int str_eq(const char *a, const char *b) {
 void shell_readline(char *buf, int maxlen) {
     int i = 0;
     while (i < maxlen - 1) {
-        system_health_flags |= HEALTH_CLI;
         char c = uart_getc();
         if (c == 0) {
             if (i == 0) cli_is_typing = 0;
+
+            /* CLI task is alive while waiting for UART input. */
+            health_monitor_heartbeat(HEALTH_TASK_CLI);
+
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
@@ -105,9 +109,34 @@ void shell_process(char *cmd) {
         }
     }
 
+    /* --- ΕΝΤΟΛΗ STACK HWM --- */
+    else if (str_eq(cmd, "stack")) {
+        TaskHandle_t xIdleHandle = xTaskGetIdleTaskHandle();
+
+        uart_puts_safe("\r\n--- STACK HIGH-WATER MARK ---\r\n");
+        uart_puts_safe("Task          HWM\r\n");
+        uart_puts_safe("------------------\r\n");
+
+        uart_puts_safe("CLI           ");
+        uart_put_num((uint32_t)uxTaskGetStackHighWaterMark(xCLI_Handle));
+        uart_puts_safe("\r\n");
+
+        uart_puts_safe("IDLE          ");
+        uart_put_num((uint32_t)uxTaskGetStackHighWaterMark(xIdleHandle));
+        uart_puts_safe("\r\n");
+
+        uart_puts_safe("AI            ");
+        uart_put_num((uint32_t)uxTaskGetStackHighWaterMark(xAI_Handle));
+        uart_puts_safe("\r\n");
+
+        uart_puts_safe("WDT           ");
+        uart_put_num((uint32_t)uxTaskGetStackHighWaterMark(xWDT_Handle));
+        uart_puts_safe("\r\n");
+    }
+
     /* --- ΕΝΤΟΛΗ PS --- */
     else if (str_eq(cmd, "ps")) {
-        char buffer[256];
+        char buffer[512];
         uart_puts_safe("\r\nName          State  Prio  Stack  Num\r\n");
         uart_puts_safe("-------------------------------------\r\n");
         vTaskList(buffer);
@@ -118,6 +147,7 @@ void shell_process(char *cmd) {
     else if (str_eq(cmd, "help")) {
         uart_puts_safe("\r\n--- ARM MSV CLI v2.4 ---\r\n");
         uart_puts_safe("ps       - Task Statistics\r\n");
+        uart_puts_safe("stack    - Stack High-Water Marks\r\n");
         uart_puts_safe("mem      - Heap Memory Usage\r\n");
         uart_puts_safe("uptime   - System Uptime\r\n");
         uart_puts_safe("boost_ai - AI Task High Priority\r\n");

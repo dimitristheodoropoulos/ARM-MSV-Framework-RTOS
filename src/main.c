@@ -2,6 +2,7 @@
 #include "task.h"
 #include "uart.h"
 #include "shell.h"
+#include "health_monitor.h"
 #include "tinyml.h"          /* <-- NEW: TinyML header */
 #include <string.h>
 
@@ -27,10 +28,6 @@ typedef struct {
 
 __attribute__((section(".noinit"))) static boot_log_t persistent_log;
 
-volatile uint32_t system_health_flags = 0;
-#define HEALTH_CLI    (1 << 0)
-#define HEALTH_AI     (1 << 1)
-#define ALL_HEALTHY   (HEALTH_CLI | HEALTH_AI)
 
 void update_log(uint32_t magic, const char* msg) {
     persistent_log.magic = magic;
@@ -74,11 +71,13 @@ void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName) {
 
 void vTaskWatchdogMonitor(void *pvParameters) {
     (void)pvParameters;
-    system_health_flags = ALL_HEALTHY;
+
+    health_monitor_init();
+
     for(;;) {
         if (!cli_is_typing) uart_putc('.');
-        if ((system_health_flags & ALL_HEALTHY) == ALL_HEALTHY) {
-            system_health_flags = 0;
+        if (health_monitor_all_healthy()) {
+            health_monitor_clear();
         } else {
             update_log(REBOOT_MAGIC_WDT, "Task Hang (Heartbeat Timeout)");
             vTaskDelay(pdMS_TO_TICKS(100));
@@ -92,7 +91,7 @@ void vTaskCLI(void *pvParameters) {
     (void)pvParameters;
     char cmd_buf[64];
     for(;;) {
-        system_health_flags |= HEALTH_CLI;
+        health_monitor_heartbeat(HEALTH_TASK_CLI);
         uart_puts_safe("rtos_msv> ");
         shell_readline(cmd_buf, 64);
         if (cmd_buf[0] != '\0') shell_process(cmd_buf);
@@ -104,7 +103,7 @@ void vTaskPredictiveAI(void *pvParameters) {
     (void)pvParameters;   /* avoid unused parameter warning */
 
     for(;;) {
-        system_health_flags |= HEALTH_AI;
+        health_monitor_heartbeat(HEALTH_TASK_AI);
 
         /* NEW: perform TinyML inference with a dummy sensor value */
         latest_prediction = ml_predict_next_temp(25.0f);   /* 25°C input */
