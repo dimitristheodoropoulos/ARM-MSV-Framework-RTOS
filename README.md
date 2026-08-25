@@ -443,78 +443,87 @@ Generated Verilator build artifacts are intentionally excluded from Git.
 
 ---
 
-## 📊 v2.6 Production Baseline
+## v2.6 Runtime Verification Baseline
 
-The current baseline has been locally validated with:
+The ARM-MSV-Framework-RTOS has reached a reproducible **v2.6 runtime verification baseline** targeting the ARM Cortex-M3 / LM3S6965 platform under QEMU.
 
-```text
-Firmware build:          PASS
-QEMU integration tests:  17/17 PASS
-HardFault recovery:      PASS
-Watchdog recovery:       PASS
-Runtime observability:   PASS
-Git diff --check:        PASS
-```
+### Verified runtime capabilities
 
-Current clean-build footprint:
+* FreeRTOS-based multitasking on ARM Cortex-M3
+* Deterministic QEMU-based firmware boot and CLI testing
+* Automated Pytest regression suite
+* CLI observability and runtime diagnostics
+* Task state, priority and stack high-water-mark monitoring
+* Heap memory and system uptime reporting
+* Watchdog supervision and recovery testing
+* HardFault / fault-recovery diagnostics
+* GNSS/NMEA parser integration
+* TinyML inference task integration
+* Thread-safe UART transmit path
+* Reproducible firmware build and regression workflow
 
-```text
-text    data    bss     dec     hex
-30816   84      10644   41544   a248
-```
-
-These values are build-output measurements for the current development baseline and may change as the firmware evolves.
-
-Detailed runtime evidence is recorded in:
+The current regression baseline has previously reached:
 
 ```text
-docs/v2.6_runtime_verification.md
+17 passed
 ```
 
----
+### Interrupt-driven UART RX
 
-## 🎯 Engineering Goals
+The latest development step introduces an interrupt-driven UART receive path for the LM3S6965 PL011-compatible UART:
 
-The project is intended to demonstrate production-oriented embedded engineering practices, including:
+```text
+UART RX FIFO
+     │
+     ▼
+ UART IRQ5
+     │
+     ▼
+UART0_IRQHandler()
+     │
+     ▼
+Software RX ring buffer
+     │
+     ▼
+uart_getc()
+     │
+     ▼
+FreeRTOS CLI
+```
 
-* deterministic embedded execution
-* RTOS-based task management
-* low-level driver development
-* watchdog-based recovery
-* fault handling
-* persistent post-mortem diagnostics
-* lightweight edge inference
-* automated system verification
-* emulated target testing
-* reproducible firmware builds
-* continuous integration
+The implementation includes:
 
-The architecture is particularly relevant to:
+* UART0 IRQ5 vector integration
+* Cortex-M3 NVIC interrupt enable
+* RX and receive-timeout interrupt handling
+* Hardware FIFO draining from the ISR
+* 256-byte power-of-two software RX ring buffer
+* Single-producer / single-consumer RX design
+* Non-blocking `uart_getc()` API
+* No FreeRTOS API calls from the UART ISR
+* Preservation of the existing thread-safe UART TX path
 
-* automotive embedded systems
-* industrial control
-* robotics
-* edge computing
-* high-reliability embedded systems
-* safety-oriented firmware development
+### Current verification status
 
----
+The interrupt-driven UART RX implementation is integrated on `main` and has been exercised under QEMU.
 
-## 📌 Project Status
+The existing runtime verification suite remains the reference regression baseline. Additional work is in progress to close the remaining QEMU/Telnet command-stream synchronization issue observed in the full CLI regression after the UART RX architecture change.
 
-**Current branch:** `main`
+This is intentionally tracked as a verification item rather than masked as a passing result.
 
-**Current milestone:** v2.6 Production Baseline
+### Engineering focus
 
-The v2.6 baseline establishes:
+The project is being developed around production-oriented embedded software practices:
 
-* reproducible ARM Cortex-M3 firmware builds
-* automated QEMU integration testing
-* runtime CLI observability
-* TinyML execution
-* watchdog/task-hang recovery verification
-* HardFault recovery verification
-* CI build and test enforcement
-* documented runtime verification evidence
+* hardware-oriented register-level driver development
+* interrupt-driven I/O
+* RTOS task scheduling
+* watchdog-based fault supervision
+* fault and recovery diagnostics
+* automated runtime regression
+* deterministic simulation
+* observability and health monitoring
+* reproducible builds
+* incremental verification and regression closure
 
-Further production hardening can be added incrementally without destabilizing the validated baseline.
+The next development stage focuses on completing interrupt-driven UART RX regression closure and extending the platform toward broader peripheral and system-level verification.
