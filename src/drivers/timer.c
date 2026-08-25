@@ -1,41 +1,72 @@
 /**
- * timer.c — SysTick Bridge for FreeRTOS
+ * timer.c — FreeRTOS timing bridge
  */
 
 #include "timer.h"
 #include "FreeRTOS.h"
 #include "task.h"
 
-/* Σημείωση: Δεν ορίζουμε SysTick_Handler εδώ. 
-   Το FreeRTOS χρησιμοποιεί τον δικό του στο port.c */
-
-void timer_init(void) {
-    /* Στο FreeRTOS ο SysTick ρυθμίζεται αυτόματα κατά την 
-       εκκίνηση του Scheduler (vTaskStartScheduler). */
-}
-
-unsigned int get_ticks(void) {
-    /* Επιστρέφει τα milliseconds από την αρχή του OS */
-    if (xTaskGetSchedulerState() == taskSCHEDULER_NOT_STARTED) {
-        return 0;
-    }
-    return (unsigned int)xTaskGetTickCount();
-}
-
-/**
- * timer_elapsed() — Υπολογισμός αν πέρασε ο χρόνος ms
- * Απαραίτητο για το ESP8266 driver.
+/*
+ * SysTick is configured by the FreeRTOS Cortex-M3 port.
+ *
+ * We deliberately do not define SysTick_Handler here.
  */
-int timer_elapsed(unsigned int start_tick, unsigned int ms) {
+
+void timer_init(void)
+{
+    /*
+     * FreeRTOS configures SysTick during vTaskStartScheduler().
+     */
+}
+
+unsigned int get_ticks(void)
+{
+    TickType_t ticks;
+
+    if (xTaskGetSchedulerState() == taskSCHEDULER_NOT_STARTED) {
+        return 0U;
+    }
+
+    ticks = xTaskGetTickCount();
+
+    /*
+     * Convert FreeRTOS ticks to milliseconds.
+     *
+     * At 100 Hz:
+     *
+     *   1 tick = 10 ms
+     */
+    return (unsigned int)(
+        ((uint32_t)ticks * 1000UL) / (uint32_t)configTICK_RATE_HZ
+    );
+}
+
+int timer_elapsed(unsigned int start_tick, unsigned int ms)
+{
     return ((get_ticks() - start_tick) >= ms) ? 1 : 0;
 }
 
-void sleep_ms(unsigned int ms) {
+void sleep_ms(unsigned int ms)
+{
     if (xTaskGetSchedulerState() == taskSCHEDULER_NOT_STARTED) {
-        /* Αν ο scheduler δεν τρέχει ακόμα, κάνουμε ένα απλό busy wait */
-        for (volatile int i = 0; i < ms * 2000; i++);
+
+        /*
+         * Scheduler has not started yet.
+         *
+         * This fallback is only for early boot code and is not
+         * cycle-accurate. Runtime task delays use FreeRTOS below.
+         */
+        for (volatile unsigned int i = 0;
+             i < (ms * 1000UL);
+             ++i) {
+            __asm volatile ("nop");
+        }
+
     } else {
-        /* Αν τρέχει το OS, παραχωρούμε τον επεξεργαστή */
+
+        /*
+         * FreeRTOS performs the actual scheduler-aware delay.
+         */
         vTaskDelay(pdMS_TO_TICKS(ms));
     }
 }

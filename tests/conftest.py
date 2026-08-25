@@ -21,7 +21,7 @@ def qemu():
         "qemu-system-arm",
         "-M", "lm3s6965evb",
         "-nographic",
-        "-serial", "telnet:127.0.0.1:4444,server,nowait",
+        "-serial", "telnet:127.0.0.1:4444,server,nowait,nodelay",
         "-kernel", FIRMWARE_PATH
     ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 

@@ -2,7 +2,7 @@
 
 A production-oriented embedded systems framework for **ARM Cortex-M3 (LM3S6965)**, combining FreeRTOS-based real-time execution, bare-metal drivers, TinyML inference, watchdog supervision, fault handling, and automated QEMU integration testing.
 
-The **v2.6 production baseline** focuses on reproducible builds, automated verification, CLI observability, and a clean CI workflow.
+The **v2.6 production baseline** focuses on reproducible builds, automated verification, CLI observability, and runtime recovery validation.
 
 ---
 
@@ -10,49 +10,51 @@ The **v2.6 production baseline** focuses on reproducible builds, automated verif
 
 ### 1. Real-Time RTOS
 
-* FreeRTOS-based preemptive multitasking.
-* CLI, AI inference, and system-monitor tasks.
-* Runtime AI task-priority control.
-* Task-state and priority observability through the CLI.
-* System uptime monitoring.
+- FreeRTOS-based preemptive multitasking.
+- CLI, AI inference, and system-monitor tasks.
+- Runtime AI task-priority control.
+- Task-state and priority observability through the CLI.
+- System uptime monitoring.
 
 ### 2. High-Reliability and Self-Healing
 
-* Watchdog supervision for task hangs and heartbeat failures.
-* Fault recovery through ARM Cortex-M system reset mechanisms.
-* Persistent post-mortem information using a `.noinit` RAM section.
-* Custom HardFault handling for invalid processor states and memory accesses.
-* CLI commands for deliberately exercising fault-recovery paths.
+- Watchdog supervision for task hangs and heartbeat failures.
+- Fault recovery through ARM Cortex-M system reset mechanisms.
+- Persistent post-mortem information using a `.noinit` RAM section.
+- Custom HardFault handling for invalid processor states and memory accesses.
+- CLI commands for deliberately exercising fault-recovery paths.
+- Verified software recovery paths for watchdog/task-hang and HardFault scenarios.
 
 ### 3. Edge AI / TinyML
 
-* Lightweight C-based TinyML inference.
-* Linear-regression model for predictive-maintenance temperature estimation.
-* Runtime prediction through the `predict` CLI command.
-* Designed for execution without cloud connectivity.
+- Lightweight C-based TinyML inference.
+- Linear-regression model for predictive-maintenance temperature estimation.
+- Runtime prediction through the `predict` CLI command.
+- Designed for execution without cloud connectivity.
 
 ### 4. Bare-Metal Drivers
 
 Register-level embedded drivers for:
 
-* UART
-* GPIO
-* I2C
-* SPI
-* Timer
-* Watchdog
-* ESP8266 interface
-* GNSS/NMEA parsing
+- UART
+- GPIO
+- I2C
+- SPI
+- Timer
+- Watchdog
+- ESP8266 interface
+- GNSS/NMEA parsing
 
 The firmware is designed around direct hardware access without a vendor HAL.
 
 ### 5. Verification and Emulation
 
-* ARM Cortex-M3 firmware emulation with QEMU.
-* Telnet/serial CLI integration testing.
-* Pytest-based black-box verification.
-* Verilator-based SPI slave simulation.
-* Automated GitHub Actions build and integration-test pipeline.
+- ARM Cortex-M3 firmware emulation with QEMU.
+- Telnet/serial CLI integration testing.
+- Pytest-based black-box verification.
+- Manual QEMU runtime verification for recovery and observability paths.
+- Verilator-based SPI slave simulation.
+- Automated GitHub Actions build and integration-test pipeline.
 
 ---
 
@@ -63,7 +65,7 @@ ARM-MSV-Framework-RTOS/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml              # Build and QEMU integration CI
-├── docs/                       # Hardware and protocol documentation
+├── docs/                       # Verification, hardware and protocol documentation
 ├── scripts/                    # Development and ML utilities
 ├── sim/                        # Verilator simulation environment
 ├── src/
@@ -77,7 +79,9 @@ ARM-MSV-Framework-RTOS/
 ├── tests/
 │   ├── conftest.py             # Shared QEMU/test infrastructure
 │   ├── test_automation.py      # Core automation tests
-│   └── test_cli.py             # CLI integration tests
+│   ├── test_cli.py             # CLI integration tests
+│   ├── test_cli_observability.py
+│   └── test_recovery.py        # Watchdog and HardFault recovery tests
 ├── linker.ld                   # Firmware linker script
 ├── Makefile                    # Firmware build system
 ├── setup_rtos.sh               # RTOS setup helper
@@ -114,13 +118,14 @@ The firmware exposes an interactive CLI through the QEMU serial/Telnet interface
 | ---------- | ---------------------------------------------------------- |
 | `help`     | Display available commands                                 |
 | `ps`       | Display RTOS task states, priorities and stack information |
+| `stack`    | Display task stack high-water marks                        |
 | `mem`      | Display current and minimum-ever free heap                 |
 | `uptime`   | Display system execution time                              |
 | `predict`  | Run/display TinyML temperature prediction                  |
 | `boost_ai` | Raise AI task priority to level 4                          |
 | `low_ai`   | Lower AI task priority to level 1                          |
 | `freeze`   | Intentionally suspend the CLI task for watchdog testing    |
-| `crash`    | Intentionally trigger a fault for HardFault testing        |
+| `crash`    | Intentionally trigger a processor fault for recovery test  |
 
 ---
 
@@ -145,6 +150,13 @@ Inspect the firmware size with:
 
 ```bash
 arm-none-eabi-size firmware.elf
+```
+
+Latest locally verified clean-build footprint:
+
+```text
+text    data    bss     dec     hex
+30816   84      10644   41544   a248
 ```
 
 ---
@@ -175,15 +187,13 @@ Run the complete regression suite:
 pytest -q
 ```
 
-The v2.6 regression baseline contains **17 tests**.
-
-Latest verified result:
+Latest locally verified result:
 
 ```text
-17 passed in 46.19s
+17 passed in 34.88s
 ```
 
-The tests cover:
+The automated regression suite covers:
 
 * CLI functionality
 * Memory reporting
@@ -198,19 +208,189 @@ The tests cover:
 * Watchdog/software recovery
 * HardFault recovery
 
+The recovery-specific tests are implemented in:
+
+```text
+tests/test_recovery.py
+```
+
+The shared QEMU recovery infrastructure is implemented in:
+
+```text
+tests/conftest.py
+```
+
+---
+
+## 🔬 v2.6 Runtime Verification
+
+The v2.6 baseline also includes a dedicated runtime verification record:
+
+```text
+docs/v2.6_runtime_verification.md
+```
+
+This document records runtime evidence from both:
+
+1. Automated pytest integration testing.
+2. Manual QEMU CLI verification.
+
+The manual verification exercises:
+
+| Runtime Area                | Test      | Result |
+| --------------------------- | --------- | ------ |
+| RTOS task management        | `ps`      | PASS   |
+| Stack monitoring            | `stack`   | PASS   |
+| Heap monitoring             | `mem`     | PASS   |
+| System timing               | `uptime`  | PASS   |
+| TinyML inference            | `predict` | PASS   |
+| Watchdog/task-hang recovery | `freeze`  | PASS   |
+| HardFault recovery          | `crash`   | PASS   |
+
+The manual tests are intended to provide explicit black-box runtime evidence in addition to the automated regression suite.
+
 ---
 
 ## 🛡️ Recovery and Watchdog Verification
 
 The project implements a software health-monitor recovery path using the ARM Cortex-M system reset mechanism (AIRCR), with persistent post-mortem information retained through the `.noinit` RAM section.
 
-The LM3S6965 hardware watchdog driver is implemented as a register-level driver according to the target peripheral model. A dedicated QEMU experiment verified watchdog register access and counter expiry.
+### Watchdog / Task-Hang Recovery
 
-However, QEMU's `lm3s6965evb` model does not provide a reliable firmware-level Cortex-M reboot when the watchdog expires. Therefore, hardware watchdog reset is not claimed as a verified QEMU recovery mechanism.
+The `freeze` CLI command deliberately suspends the CLI task and exercises the software health-monitor recovery path.
 
-The verified recovery mechanism for the v2.6 baseline is the software health-monitor → fault/recovery handler → AIRCR system reset path.
+The expected recovery sequence is:
 
-GitHub Actions automatically performs:
+```text
+[TEST] Freezing CLI...
+
+[KERNEL] EMERGENCY RESET...
+
+[BOOT] Diagnostic Log (v2.3):
+ -> STATUS: WATCHDOG RECOVERY
+ -> CAUSE:  Task Hang (Heartbeat Timeout)
+ -> TOTAL RESETS: 1
+```
+
+This verifies the software watchdog/heartbeat recovery path under QEMU.
+
+### HardFault Recovery
+
+The `crash` CLI command deliberately triggers a processor fault.
+
+The verified QEMU runtime result is:
+
+```text
+[TEST] Forcing Usage Fault...
+
+[KERNEL] EMERGENCY RESET...
+
+[BOOT] Diagnostic Log (v2.3):
+ -> STATUS: HARD FAULT RECOVERY
+ -> CAUSE:  CPU HardFault (Invalid Access)
+ -> TOTAL RESETS: 1
+```
+
+This confirms that the fault path reaches the emergency recovery handler, records persistent diagnostic information, performs the system reset, and boots back into the CLI.
+
+### Hardware Watchdog Qualification
+
+The LM3S6965 hardware watchdog driver is implemented as a register-level driver according to the target peripheral model.
+
+A dedicated QEMU experiment verified watchdog register access and counter expiry.
+
+However, QEMU's `lm3s6965evb` model does not provide a reliable firmware-level Cortex-M reboot when the watchdog expires. Therefore, the project does **not** claim hardware watchdog reset as a fully verified QEMU recovery mechanism.
+
+The verified recovery mechanism for the v2.6 baseline is the:
+
+```text
+software health monitor
+        ↓
+fault / recovery handler
+        ↓
+AIRCR system reset
+        ↓
+post-mortem diagnostic log
+        ↓
+normal firmware boot
+```
+
+---
+
+## 🔄 Recovery Verification Summary
+
+The two primary software recovery paths are independently exercised:
+
+| Test     | Recovery Path                | Result |
+| -------- | ---------------------------- | ------ |
+| `freeze` | Watchdog / heartbeat timeout | PASS   |
+| `crash`  | Cortex-M HardFault recovery  | PASS   |
+
+The recovery tests verify not only that an emergency reset occurs, but also that the post-reset diagnostic log identifies the recovery cause and reset count.
+
+---
+
+## 🤖 TinyML Runtime Verification
+
+The firmware includes a lightweight C-based TinyML inference path for predictive-maintenance temperature estimation.
+
+The `predict` CLI command executes the inference path directly on the embedded target.
+
+Example usage:
+
+```text
+rtos_msv> predict
+```
+
+The TinyML path is included in the automated QEMU regression suite and the runtime verification baseline.
+
+---
+
+## 📊 Runtime Observability
+
+The firmware provides runtime observability through the CLI.
+
+### RTOS Tasks
+
+```text
+rtos_msv> ps
+```
+
+The command reports task state and priority information for the active RTOS tasks.
+
+### Stack Monitoring
+
+```text
+rtos_msv> stack
+```
+
+The command reports stack high-water-mark information for the monitored tasks.
+
+### Heap Monitoring
+
+```text
+rtos_msv> mem
+```
+
+The command reports current and minimum-ever free heap information.
+
+### System Timing
+
+```text
+rtos_msv> uptime
+```
+
+The command reports system execution time based on the FreeRTOS timing infrastructure.
+
+These interfaces are verified by the automated regression suite and the v2.6 runtime verification workflow.
+
+---
+
+## 🔧 CI Verification
+
+GitHub Actions performs the production verification workflow on pushes and pull requests.
+
+The CI pipeline performs:
 
 1. Repository checkout
 2. ARM GNU toolchain installation
@@ -227,7 +407,23 @@ The CI workflow is:
 .github/workflows/ci.yml
 ```
 
-This ensures that every push and pull request is validated through both **firmware compilation** and **runtime integration tests**.
+The intended verification flow is:
+
+```text
+Source
+  ↓
+Clean Build
+  ↓
+firmware.elf
+  ↓
+QEMU Cortex-M3
+  ↓
+Pytest Integration Tests
+  ↓
+Runtime Verification
+```
+
+This provides automated validation of both firmware compilation and target-level runtime behaviour.
 
 ---
 
@@ -254,18 +450,26 @@ The current baseline has been locally validated with:
 ```text
 Firmware build:          PASS
 QEMU integration tests:  17/17 PASS
-Git working tree:        CLEAN
+HardFault recovery:      PASS
+Watchdog recovery:       PASS
+Runtime observability:   PASS
+Git diff --check:        PASS
 ```
 
-The firmware build currently reports approximately:
+Current clean-build footprint:
 
 ```text
 text    data    bss     dec     hex
-
-26072   84      10644   36800   8fc0
+30816   84      10644   41544   a248
 ```
 
 These values are build-output measurements for the current development baseline and may change as the firmware evolves.
+
+Detailed runtime evidence is recorded in:
+
+```text
+docs/v2.6_runtime_verification.md
+```
 
 ---
 
@@ -278,13 +482,21 @@ The project is intended to demonstrate production-oriented embedded engineering 
 * low-level driver development
 * watchdog-based recovery
 * fault handling
+* persistent post-mortem diagnostics
 * lightweight edge inference
 * automated system verification
 * emulated target testing
 * reproducible firmware builds
 * continuous integration
 
-The architecture is particularly relevant to **automotive, industrial, robotics, edge-computing, and safety-oriented embedded systems**.
+The architecture is particularly relevant to:
+
+* automotive embedded systems
+* industrial control
+* robotics
+* edge computing
+* high-reliability embedded systems
+* safety-oriented firmware development
 
 ---
 
@@ -294,4 +506,15 @@ The architecture is particularly relevant to **automotive, industrial, robotics,
 
 **Current milestone:** v2.6 Production Baseline
 
-The baseline currently establishes a clean firmware build, automated QEMU integration testing, and CI verification. Further production hardening can be added incrementally without destabilizing the validated baseline.
+The v2.6 baseline establishes:
+
+* reproducible ARM Cortex-M3 firmware builds
+* automated QEMU integration testing
+* runtime CLI observability
+* TinyML execution
+* watchdog/task-hang recovery verification
+* HardFault recovery verification
+* CI build and test enforcement
+* documented runtime verification evidence
+
+Further production hardening can be added incrementally without destabilizing the validated baseline.
