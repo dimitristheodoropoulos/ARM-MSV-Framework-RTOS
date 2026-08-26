@@ -104,6 +104,28 @@ static void print_uint_dec(uint32_t value)
     }
 }
 
+/*
+ * Print a signed integer in decimal using only the UART
+ * primitives already provided by uart.h.
+ */
+static void print_int_dec(int32_t value)
+{
+    if (value < 0) {
+        uart_putc('-');
+
+        /*
+         * Avoid signed overflow for INT32_MIN.
+         */
+        uint32_t magnitude =
+            (uint32_t)(-(value + 1)) + 1U;
+
+        print_uint_dec(magnitude);
+        return;
+    }
+
+    print_uint_dec((uint32_t)value);
+}
+
 
 /* ------------------------------------------------------------
  * Diagnostic logging (υπάρχον)
@@ -298,8 +320,9 @@ static void print_bms_status(void)
     uart_puts_safe(" mA\r\n");
 
     uart_puts_safe("    Temp.     : ");
-    /* Προσοχή: print_uint_dec δεν υποστηρίζει αρνητικούς. Είναι γνωστός περιορισμός. */
-    print_uint_dec((uint32_t)(mgr->measurements.temperature.value * 10.0f));
+    print_int_dec(
+        (int32_t)(mgr->measurements.temperature.value * 10.0f)
+    );
     uart_puts_safe(" x10 C\r\n");
 
     uart_puts_safe("================================\r\n");
@@ -391,7 +414,7 @@ void vTaskBMS(void *pvParameters)
 
 
 /* ------------------------------------------------------------
- * Watchdog / health monitor task (υπάρχον, αμετάβλητο)
+ * Watchdog / health monitor task (υπάρχον, με DIAGNOSTIC αλλαγή)
  * ------------------------------------------------------------ */
 
 void vTaskWatchdogMonitor(void *pvParameters)
@@ -399,6 +422,7 @@ void vTaskWatchdogMonitor(void *pvParameters)
     (void)pvParameters;
 
     health_monitor_init();
+
     watchdog_init(6000);
 
     for (;;)
