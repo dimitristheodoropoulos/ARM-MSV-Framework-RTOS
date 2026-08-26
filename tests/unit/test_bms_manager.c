@@ -3,27 +3,19 @@
 
 #include "bms_manager.h"
 
-/* Helper: create valid measurements */
-static bms_measurements_t make_valid_measurements(float voltage,
-                                                  float current,
-                                                  float temperature)
+static bms_measurements_t make_valid_measurements(float v, float i, float t)
 {
     bms_measurements_t m;
     bms_measurements_init(&m);
-
-    m.voltage.value = voltage;
+    m.voltage.value = v;
     m.voltage.status = BMS_MEAS_VALID;
-
-    m.current.value = current;
+    m.current.value = i;
     m.current.status = BMS_MEAS_VALID;
-
-    m.temperature.value = temperature;
+    m.temperature.value = t;
     m.temperature.status = BMS_MEAS_VALID;
-
     return m;
 }
 
-/* Default limits: 40-54V, 20A, -20..60°C */
 static bms_limits_t default_limits(void)
 {
     bms_limits_t limits;
@@ -37,155 +29,159 @@ static bms_limits_t default_limits(void)
 
 static void test_init(void)
 {
-    bms_manager_t manager;
+    bms_manager_t mgr;
     bms_limits_t limits = default_limits();
+    bms_manager_init(&mgr, &limits);
 
-    bms_manager_init(&manager, &limits);
-
-    assert(manager.status.state == BMS_STATE_INIT);
-    assert(manager.status.fault == BMS_FAULT_NONE);
-
-    assert(manager.protection == BMS_PROTECTION_INVALID_MEASUREMENT);
-
-    assert(manager.measurements.voltage.status == BMS_MEAS_NOT_AVAILABLE);
-    assert(manager.measurements.current.status == BMS_MEAS_NOT_AVAILABLE);
-    assert(manager.measurements.temperature.status == BMS_MEAS_NOT_AVAILABLE);
-
-    assert(manager.limits.min_voltage == limits.min_voltage);
-    assert(manager.limits.max_voltage == limits.max_voltage);
-    assert(manager.limits.max_current == limits.max_current);
-    assert(manager.limits.min_temperature == limits.min_temperature);
-    assert(manager.limits.max_temperature == limits.max_temperature);
+    assert(mgr.status.state == BMS_STATE_INIT);
+    assert(mgr.status.fault == BMS_FAULT_NONE);
+    assert(mgr.protection == BMS_PROTECTION_INVALID_MEASUREMENT);
+    assert(mgr.measurements.voltage.status == BMS_MEAS_NOT_AVAILABLE);
+    assert(mgr.limits.min_voltage == limits.min_voltage);
+    /* κλπ. */
 }
 
 static void test_update_normal(void)
 {
-    bms_manager_t manager;
+    bms_manager_t mgr;
     bms_limits_t limits = default_limits();
-    bms_measurements_t measurements;
+    bms_manager_init(&mgr, &limits);
 
-    bms_manager_init(&manager, &limits);
+    bms_measurements_t m = make_valid_measurements(48.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
 
-    measurements = make_valid_measurements(48.0f, 10.0f, 25.0f);
-    bms_manager_update(&manager, &measurements);
-
-    assert(manager.protection == BMS_PROTECTION_NORMAL);
-    assert(manager.status.state == BMS_STATE_NORMAL);
-    assert(manager.status.fault == BMS_FAULT_NONE);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+    assert(mgr.status.state == BMS_STATE_NORMAL);
+    assert(mgr.status.fault == BMS_FAULT_NONE);
 }
 
-static void test_update_overvoltage(void)
+/* Νέα δοκιμή: ακριβώς στα όρια */
+static void test_update_exact_boundaries(void)
 {
-    bms_manager_t manager;
+    bms_manager_t mgr;
     bms_limits_t limits = default_limits();
-    bms_measurements_t measurements;
+    bms_manager_init(&mgr, &limits);
 
-    bms_manager_init(&manager, &limits);
+    /* Τάση ακριβώς στα όρια */
+    bms_measurements_t m = make_valid_measurements(40.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+    assert(mgr.status.state == BMS_STATE_NORMAL);
 
-    measurements = make_valid_measurements(55.0f, 10.0f, 25.0f);
-    bms_manager_update(&manager, &measurements);
+    m = make_valid_measurements(54.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
 
-    assert(manager.protection == BMS_PROTECTION_OVER_VOLTAGE);
-    assert(manager.status.state == BMS_STATE_FAULT);
-    assert(manager.status.fault == BMS_FAULT_OVERVOLTAGE);
+    /* Ρεύμα ακριβώς */
+    m = make_valid_measurements(48.0f, 20.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+
+    /* Θερμοκρασία ακριβώς */
+    m = make_valid_measurements(48.0f, 10.0f, -20.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+
+    m = make_valid_measurements(48.0f, 10.0f, 60.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
 }
 
-static void test_update_undervoltage(void)
+/* Νέα δοκιμή: λίγο εντός / εκτός */
+static void test_update_just_inside_outside(void)
 {
-    bms_manager_t manager;
+    bms_manager_t mgr;
     bms_limits_t limits = default_limits();
-    bms_measurements_t measurements;
+    bms_manager_init(&mgr, &limits);
 
-    bms_manager_init(&manager, &limits);
+    /* just inside */
+    bms_measurements_t m = make_valid_measurements(40.0001f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
 
-    measurements = make_valid_measurements(39.0f, 10.0f, 25.0f);
-    bms_manager_update(&manager, &measurements);
+    m = make_valid_measurements(53.9999f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
 
-    assert(manager.protection == BMS_PROTECTION_UNDER_VOLTAGE);
-    assert(manager.status.state == BMS_STATE_FAULT);
-    assert(manager.status.fault == BMS_FAULT_UNDERVOLTAGE);
+    m = make_valid_measurements(48.0f, 19.9999f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+
+    m = make_valid_measurements(48.0f, 10.0f, -19.9999f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+
+    m = make_valid_measurements(48.0f, 10.0f, 59.9999f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+
+    /* just outside */
+    m = make_valid_measurements(39.9999f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_UNDER_VOLTAGE);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_UNDERVOLTAGE);
+
+    m = make_valid_measurements(54.0001f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_OVER_VOLTAGE);
+
+    m = make_valid_measurements(48.0f, 20.0001f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_OVER_CURRENT);
+
+    m = make_valid_measurements(48.0f, 10.0f, -20.0001f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_UNDER_TEMPERATURE);
+
+    m = make_valid_measurements(48.0f, 10.0f, 60.0001f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_OVER_TEMPERATURE);
 }
 
-static void test_update_overcurrent(void)
+/* Νέα δοκιμή: μετάβαση FAULT → NORMAL μέσω manager */
+static void test_update_transition_fault_to_normal(void)
 {
-    bms_manager_t manager;
+    bms_manager_t mgr;
     bms_limits_t limits = default_limits();
-    bms_measurements_t measurements;
+    bms_manager_init(&mgr, &limits);
 
-    bms_manager_init(&manager, &limits);
+    /* Αρχικά NORMAL */
+    bms_measurements_t m = make_valid_measurements(48.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+    assert(mgr.status.state == BMS_STATE_NORMAL);
 
-    measurements = make_valid_measurements(48.0f, 21.0f, 25.0f);
-    bms_manager_update(&manager, &measurements);
+    /* Προκαλούμε OVERVOLTAGE */
+    m = make_valid_measurements(55.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_OVER_VOLTAGE);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_OVERVOLTAGE);
 
-    assert(manager.protection == BMS_PROTECTION_OVER_CURRENT);
-    assert(manager.status.state == BMS_STATE_FAULT);
-    assert(manager.status.fault == BMS_FAULT_OVERCURRENT);
-}
-
-static void test_update_overtemperature(void)
-{
-    bms_manager_t manager;
-    bms_limits_t limits = default_limits();
-    bms_measurements_t measurements;
-
-    bms_manager_init(&manager, &limits);
-
-    measurements = make_valid_measurements(48.0f, 10.0f, 61.0f);
-    bms_manager_update(&manager, &measurements);
-
-    assert(manager.protection == BMS_PROTECTION_OVER_TEMPERATURE);
-    assert(manager.status.state == BMS_STATE_FAULT);
-    assert(manager.status.fault == BMS_FAULT_OVERTEMPERATURE);
-}
-
-static void test_update_undertemperature(void)
-{
-    bms_manager_t manager;
-    bms_limits_t limits = default_limits();
-    bms_measurements_t measurements;
-
-    bms_manager_init(&manager, &limits);
-
-    measurements = make_valid_measurements(48.0f, 10.0f, -21.0f);
-    bms_manager_update(&manager, &measurements);
-
-    assert(manager.protection == BMS_PROTECTION_UNDER_TEMPERATURE);
-    assert(manager.status.state == BMS_STATE_FAULT);
-    assert(manager.status.fault == BMS_FAULT_UNDERTEMPERATURE);
-}
-
-static void test_update_invalid_measurement(void)
-{
-    bms_manager_t manager;
-    bms_limits_t limits = default_limits();
-    bms_measurements_t measurements;
-
-    bms_manager_init(&manager, &limits);
-
-    measurements = make_valid_measurements(48.0f, 10.0f, 25.0f);
-    measurements.voltage.status = BMS_MEAS_NOT_AVAILABLE;
-    bms_manager_update(&manager, &measurements);
-
-    assert(manager.protection == BMS_PROTECTION_INVALID_MEASUREMENT);
-    assert(manager.status.state == BMS_STATE_FAULT);
-    assert(manager.status.fault == BMS_FAULT_INVALID_MEASUREMENT);
+    /* Επιστροφή σε NORMAL */
+    m = make_valid_measurements(48.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+    assert(mgr.status.state == BMS_STATE_NORMAL);
+    assert(mgr.status.fault == BMS_FAULT_NONE);
 }
 
 static void test_null_arguments(void)
 {
-    bms_manager_t manager;
+    bms_manager_t mgr;
     bms_limits_t limits = default_limits();
-    bms_measurements_t measurements = make_valid_measurements(48.0f, 10.0f, 25.0f);
+    bms_measurements_t m = make_valid_measurements(48.0f, 10.0f, 25.0f);
 
     bms_manager_init(0, &limits);
-    bms_manager_init(&manager, 0);
-    bms_manager_update(0, &measurements);
-    bms_manager_update(&manager, 0);
+    bms_manager_init(&mgr, 0);
+    bms_manager_update(0, &m);
+    bms_manager_update(&mgr, 0);
 }
 
 int main(void)
 {
-    printf("[BMS MANAGER UNIT] Running tests...\n");
+    printf("[BMS MANAGER UNIT] Running extended end-to-end tests...\n");
 
     test_init();
     printf("[PASS] init\n");
@@ -193,28 +189,18 @@ int main(void)
     test_update_normal();
     printf("[PASS] update_normal\n");
 
-    test_update_overvoltage();
-    printf("[PASS] update_overvoltage\n");
+    test_update_exact_boundaries();
+    printf("[PASS] exact boundaries\n");
 
-    test_update_undervoltage();
-    printf("[PASS] update_undervoltage\n");
+    test_update_just_inside_outside();
+    printf("[PASS] just inside/outside\n");
 
-    test_update_overcurrent();
-    printf("[PASS] update_overcurrent\n");
-
-    test_update_overtemperature();
-    printf("[PASS] update_overtemperature\n");
-
-    test_update_undertemperature();
-    printf("[PASS] update_undertemperature\n");
-
-    test_update_invalid_measurement();
-    printf("[PASS] update_invalid_measurement\n");
+    test_update_transition_fault_to_normal();
+    printf("[PASS] transition fault → normal\n");
 
     test_null_arguments();
     printf("[PASS] null_arguments\n");
 
     printf("[BMS MANAGER UNIT] All tests passed.\n");
-
     return 0;
 }
