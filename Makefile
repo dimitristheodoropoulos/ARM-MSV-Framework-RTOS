@@ -25,6 +25,7 @@ RTOS_MEMMANG_DIR  = $(RTOS_DIR)/portable/MemMang
 
 
 INCLUDES = -I $(SRC_DIR)/arch/arm \
+           -I $(SRC_DIR)/bms \
            -I $(SRC_DIR)/drivers \
            -I $(SRC_DIR)/kernel \
            -I $(SRC_DIR)/gnss \
@@ -37,6 +38,10 @@ INCLUDES = -I $(SRC_DIR)/arch/arm \
 
 SRCS = $(SRC_DIR)/arch/arm/syscalls.c \
        $(SRC_DIR)/arch/arm/system_clock.c \
+       $(SRC_DIR)/bms/bms_measurements.c \
+       $(SRC_DIR)/bms/bms_state.c \
+       $(SRC_DIR)/bms/bms_protection.c \
+       $(SRC_DIR)/bms/bms_manager.c \
        $(SRC_DIR)/drivers/uart.c \
        $(SRC_DIR)/drivers/gpio.c \
        $(SRC_DIR)/drivers/watchdog.c \
