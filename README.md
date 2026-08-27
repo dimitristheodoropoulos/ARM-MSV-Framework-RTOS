@@ -608,6 +608,71 @@ Generated Verilator build artifacts are intentionally excluded from Git.
 
 ---
 
+# 🔋 BMS Software Foundation v1.0
+
+The repository includes a verified BMS software foundation for ARM Cortex-M3
+firmware development. The implementation provides battery-oriented measurement,
+protection, state-management and orchestration logic.
+
+The BMS v1.0 verification baseline is documented in:
+
+```text
+docs/bms_verification_report.md
+```
+
+### Verification baseline
+
+| Metric                     |       Result |
+| -------------------------- | -----------: |
+| Requirements assessed      |           64 |
+| VERIFIED                   |           32 |
+| IMPLEMENTED / NOT VERIFIED |            7 |
+| PENDING                    |           25 |
+| OUT-OF-SCOPE               |            0 |
+| BMS regression             |   17/17 PASS |
+| Firmware image             | 45,384 bytes |
+
+The verified scope currently includes:
+
+* measurement representation and validity handling
+* voltage, current and temperature protection evaluation
+* protection boundary verification
+* BMS fault and state transitions
+* BMS manager orchestration
+* FreeRTOS integration
+* host-based unit testing
+* deterministic core behaviour
+* modular BMS architecture
+
+The current baseline does **not** claim:
+
+* physical battery-pack validation
+* cell-level monitoring or balancing
+* contactor or charger control
+* CAN/I2C hardware integration
+* hardware-in-the-loop validation
+* production BMS validation
+* functional-safety certification
+
+The BMS verification report deliberately distinguishes:
+
+```text
+Implemented
+     ↓
+Tested
+     ↓
+Verified
+```
+
+Only requirements with sufficient implementation and verification evidence are
+classified as **VERIFIED**.
+
+The next verification campaign targets **REQ-027/028 — protection-limit
+validation**, followed by the remaining gaps identified in the verification
+report.
+
+---
+
 # 📌 Current Development Status
 
 ## Verified / Established
@@ -630,8 +695,6 @@ Generated Verilator build artifacts are intentionally excluded from Git.
 * Software recovery architecture.
 * `.noinit` post-mortem diagnostic mechanism.
 * Interrupt-vector integration for UART0.
-* Interrupt-driven UART RX implementation.
-* Software RX ring-buffer architecture.
 
 ## Active Verification Item
 
