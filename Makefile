@@ -82,3 +82,13 @@ firmware.elf: $(OBJS)
 
 clean:
 	rm -f $(OBJS) firmware.elf
+
+
+.PHONY: all clean test verify
+
+test: firmware.elf
+	pytest -q
+
+verify: clean
+	$(MAKE) firmware.elf
+	$(MAKE) test
