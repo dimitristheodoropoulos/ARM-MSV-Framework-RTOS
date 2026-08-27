@@ -15,6 +15,14 @@
 
 
 /* ------------------------------------------------------------
+ * Watchdog timing constants
+ * ------------------------------------------------------------ */
+
+#define WDT_TIMEOUT_MS         10000U
+#define WDT_MONITOR_PERIOD_MS   5000U
+
+
+/* ------------------------------------------------------------
  * Persistent reboot diagnostics
  * ------------------------------------------------------------ */
 
@@ -414,7 +422,7 @@ void vTaskBMS(void *pvParameters)
 
 
 /* ------------------------------------------------------------
- * Watchdog / health monitor task (υπάρχον, με DIAGNOSTIC αλλαγή)
+ * Watchdog / health monitor task (με βελτιωμένο monitoring period)
  * ------------------------------------------------------------ */
 
 void vTaskWatchdogMonitor(void *pvParameters)
@@ -423,7 +431,7 @@ void vTaskWatchdogMonitor(void *pvParameters)
 
     health_monitor_init();
 
-    watchdog_init(6000);
+    watchdog_init(WDT_TIMEOUT_MS);
 
     for (;;)
     {
@@ -447,7 +455,7 @@ void vTaskWatchdogMonitor(void *pvParameters)
             }
         }
 
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(WDT_MONITOR_PERIOD_MS));
     }
 }
 
