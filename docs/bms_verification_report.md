@@ -27,9 +27,9 @@ or source-code existence.
 ## 2. Verification Baseline
 
 **Verification date:** 2026-08-27
-**Git baseline:** `8ec7bbf feat: integrate BMS software foundation`
+**Git baseline:** `c33562c fix: harden BMS measurement validation and configuration latch`
 **Branch:** `main`
-**Repository state:** clean (at baseline)
+**Repository state:** CLEAN
 
 ---
 
@@ -104,8 +104,8 @@ src/bms/
 | 024 | **VERIFIED**                   | Deterministic transitions tested |
 | 025 | **PENDING**                    | No handling of invalid `bms_state_t` values |
 | 026 | **VERIFIED**                   | Limits stored independently (`bms_limits_t`) |
-| 027 | **PENDING**                    | No limits validation |
-| 028 | **PENDING**                    | No invalid‑configuration rejection |
+| 027 | **VERIFIED**                   | `bms_limits_validate()` implemented; unit-tested |
+| 028 | **VERIFIED**                   | Invalid limits rejected in `bms_manager_init()` with configuration latch; tested |
 | 029 | **IMPLEMENTED / NOT VERIFIED** | `print_bms_status()` exists but no dedicated diagnostics layer |
 | 030 | **IMPLEMENTED / NOT VERIFIED** | Fault visibility via print; no dedicated interface |
 | 031 | **PENDING**                    | No fault‑context interface |
@@ -123,7 +123,7 @@ src/bms/
 | 043 | **VERIFIED**                   | Core tests run without scheduler |
 | 044 | **VERIFIED**                   | Invalid/null inputs tested |
 | 045 | **VERIFIED**                   | Protection boundaries deterministic |
-| 046 | **PENDING**                    | No NaN/Inf/numerical robustness campaign |
+| 046 | **VERIFIED**                   | NaN/+Inf/-Inf rejected by `bms_measurements_validate()` via `isfinite()`; dedicated unit tests |
 | 047 | **VERIFIED**                   | Automated unit tests exist |
 | 048 | **VERIFIED**                   | Boundary tests exist |
 | 049 | **PENDING**                    | No simultaneous fault‑combination tests |
@@ -149,9 +149,9 @@ src/bms/
 
 | Status                         | Count |
 | ------------------------------ | ----: |
-| **VERIFIED**                   |    32 |
+| **VERIFIED**                   |    35 |
 | **IMPLEMENTED / NOT VERIFIED** |     7 |
-| **PENDING**                    |    25 |
+| **PENDING**                    |    22 |
 | **OUT-OF-SCOPE**               |     0 |
 | **TOTAL**                      |    64 |
 
@@ -174,15 +174,14 @@ Explicit limitations: see Section 9 of the full report (simplified version).
 - **Build:** PASS
 - **Regression:** 17/17 PASS
 - **Firmware size:** 45384 bytes
-- **Git baseline:** `8ec7bbf`
-- **Working tree (at baseline):** CLEAN
+- **Git baseline:** `c33562c`
+- **Baseline repository state:** CLEAN
 
 ---
 
 ## 10. Recommended Next Steps
 
 1. Implement missing acquisition interface (001–003)
-2. Add limit validation (027–028)
-3. Implement simultaneous fault representation (016)
-4. Add requirement IDs to tests (054)
-5. Run static analysis (058)
+2. Implement simultaneous fault representation (016)
+3. Add requirement IDs to tests (054)
+4. Run static analysis (058)

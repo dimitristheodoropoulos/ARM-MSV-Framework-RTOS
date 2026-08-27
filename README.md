@@ -625,12 +625,14 @@ docs/bms_verification_report.md
 | Metric                     |       Result |
 | -------------------------- | -----------: |
 | Requirements assessed      |           64 |
-| VERIFIED                   |           32 |
+| VERIFIED                   |           35 |
 | IMPLEMENTED / NOT VERIFIED |            7 |
-| PENDING                    |           25 |
+| PENDING                    |           22 |
 | OUT-OF-SCOPE               |            0 |
 | BMS regression             |   17/17 PASS |
 | Firmware image             | 45,384 bytes |
+
+*Note: REQ-027 (limit validation), REQ-028 (invalid configuration handling), and REQ-046 (NaN/Inf measurement rejection) are verified by the current BMS unit-test baseline.*
 
 The verified scope currently includes:
 
@@ -666,10 +668,6 @@ Verified
 
 Only requirements with sufficient implementation and verification evidence are
 classified as **VERIFIED**.
-
-The next verification campaign targets **REQ-027/028 — protection-limit
-validation**, followed by the remaining gaps identified in the verification
-report.
 
 ---
 
