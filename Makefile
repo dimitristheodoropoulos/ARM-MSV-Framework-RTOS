@@ -41,6 +41,7 @@ SRCS = $(SRC_DIR)/arch/arm/syscalls.c \
        $(SRC_DIR)/bms/bms_measurements.c \
        $(SRC_DIR)/bms/bms_state.c \
        $(SRC_DIR)/bms/bms_protection.c \
+       $(SRC_DIR)/bms/bms_limits.c \
        $(SRC_DIR)/bms/bms_manager.c \
        $(SRC_DIR)/drivers/uart.c \
        $(SRC_DIR)/drivers/gpio.c \
