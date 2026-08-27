@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <math.h>
 
 #include "bms_measurements.h"
 
@@ -220,6 +221,120 @@ static int test_null_validation_fails(void)
     return 0;
 }
 
+/* ================================================================
+ * ΝΕΑ TESTS: NaN και Infinity rejection (BMS-REQ-046)
+ * ================================================================ */
+
+static int test_nan_voltage_rejected(void)
+{
+    bms_measurements_t measurements = {
+        .voltage = {
+            .value = NAN,
+            .status = BMS_MEAS_VALID
+        },
+        .current = {
+            .value = 10.0f,
+            .status = BMS_MEAS_VALID
+        },
+        .temperature = {
+            .value = 25.0f,
+            .status = BMS_MEAS_VALID
+        }
+    };
+
+    ASSERT_EQ(-1, bms_measurements_validate(&measurements));
+
+    return 0;
+}
+
+static int test_nan_current_rejected(void)
+{
+    bms_measurements_t measurements = {
+        .voltage = {
+            .value = 48.0f,
+            .status = BMS_MEAS_VALID
+        },
+        .current = {
+            .value = NAN,
+            .status = BMS_MEAS_VALID
+        },
+        .temperature = {
+            .value = 25.0f,
+            .status = BMS_MEAS_VALID
+        }
+    };
+
+    ASSERT_EQ(-1, bms_measurements_validate(&measurements));
+
+    return 0;
+}
+
+static int test_nan_temperature_rejected(void)
+{
+    bms_measurements_t measurements = {
+        .voltage = {
+            .value = 48.0f,
+            .status = BMS_MEAS_VALID
+        },
+        .current = {
+            .value = 10.0f,
+            .status = BMS_MEAS_VALID
+        },
+        .temperature = {
+            .value = NAN,
+            .status = BMS_MEAS_VALID
+        }
+    };
+
+    ASSERT_EQ(-1, bms_measurements_validate(&measurements));
+
+    return 0;
+}
+
+static int test_infinity_voltage_rejected(void)
+{
+    bms_measurements_t measurements = {
+        .voltage = {
+            .value = INFINITY,
+            .status = BMS_MEAS_VALID
+        },
+        .current = {
+            .value = 10.0f,
+            .status = BMS_MEAS_VALID
+        },
+        .temperature = {
+            .value = 25.0f,
+            .status = BMS_MEAS_VALID
+        }
+    };
+
+    ASSERT_EQ(-1, bms_measurements_validate(&measurements));
+
+    return 0;
+}
+
+static int test_negative_infinity_current_rejected(void)
+{
+    bms_measurements_t measurements = {
+        .voltage = {
+            .value = 48.0f,
+            .status = BMS_MEAS_VALID
+        },
+        .current = {
+            .value = -INFINITY,
+            .status = BMS_MEAS_VALID
+        },
+        .temperature = {
+            .value = 25.0f,
+            .status = BMS_MEAS_VALID
+        }
+    };
+
+    ASSERT_EQ(-1, bms_measurements_validate(&measurements));
+
+    return 0;
+}
+
 typedef int (*test_function_t)(void);
 
 typedef struct
@@ -266,6 +381,27 @@ int main(void)
         {
             "null_validation_fails",
             test_null_validation_fails
+        },
+        /* ΝΕΑ: NaN/Inf tests */
+        {
+            "nan_voltage_rejected",
+            test_nan_voltage_rejected
+        },
+        {
+            "nan_current_rejected",
+            test_nan_current_rejected
+        },
+        {
+            "nan_temperature_rejected",
+            test_nan_temperature_rejected
+        },
+        {
+            "infinity_voltage_rejected",
+            test_infinity_voltage_rejected
+        },
+        {
+            "negative_infinity_current_rejected",
+            test_negative_infinity_current_rejected
         }
     };
 

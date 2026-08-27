@@ -156,23 +156,48 @@ static void test_update_transition_fault_to_normal(void)
     assert(mgr.status.fault == BMS_FAULT_NONE);
 }
 
-/* ΝΕΟ: RED test για REQ-028 – invalid limits configuration */
+/* REQ-028: invalid limits configuration */
 static void test_invalid_limits_configuration(void)
 {
     bms_manager_t mgr;
     bms_limits_t limits = default_limits();
 
-    /* Δημιουργούμε ένα ακυρό σύνολο ορίων */
+    /* Invalid: min_voltage >= max_voltage */
     limits.min_voltage = 54.0f;
     limits.max_voltage = 40.0f;
 
-    /* Επαλήθευση ότι η bms_limits_validate() το ανιχνεύει */
     assert(bms_limits_validate(&limits) == -1);
 
-    /* Αρχικοποιούμε τον manager με τα άκυρα όρια */
     bms_manager_init(&mgr, &limits);
 
-    /* Αναμένουμε fail‑safe κατάσταση */
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_INVALID_CONFIGURATION);
+}
+
+/* ΝΕΟ RED test: configuration latch – after invalid init, even valid
+ * measurements must NOT recover to NORMAL.
+ */
+static void test_invalid_configuration_is_latched(void)
+{
+    bms_manager_t mgr;
+    bms_limits_t limits = default_limits();
+
+    /* Invalid: min_voltage >= max_voltage */
+    limits.min_voltage = 54.0f;
+    limits.max_voltage = 40.0f;
+
+    bms_manager_init(&mgr, &limits);
+
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_INVALID_CONFIGURATION);
+
+    /* Valid measurements must NOT clear the invalid-configuration fault */
+    bms_measurements_t m =
+        make_valid_measurements(48.0f, 10.0f, 25.0f);
+
+    bms_manager_update(&mgr, &m);
+
+    /* Still FAULT / INVALID_CONFIGURATION */
     assert(mgr.status.state == BMS_STATE_FAULT);
     assert(mgr.status.fault == BMS_FAULT_INVALID_CONFIGURATION);
 }
@@ -210,6 +235,9 @@ int main(void)
 
     test_invalid_limits_configuration();
     printf("[PASS] invalid_limits_configuration\n");
+
+    test_invalid_configuration_is_latched();
+    printf("[PASS] invalid_configuration_is_latched\n");
 
     test_null_arguments();
     printf("[PASS] null_arguments\n");

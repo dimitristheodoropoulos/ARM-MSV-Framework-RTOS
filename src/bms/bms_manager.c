@@ -11,6 +11,9 @@ void bms_manager_init(bms_manager_t *manager, const bms_limits_t *limits)
     /* Initialise measurements with invalid status */
     bms_measurements_init(&manager->measurements);
 
+    /* By default, configuration is valid */
+    manager->configuration_fault_latched = 0U;
+
     /* Validate the protection limits */
     if (bms_limits_validate(limits) != 0)
     {
@@ -25,6 +28,9 @@ void bms_manager_init(bms_manager_t *manager, const bms_limits_t *limits)
         bms_state_init(&manager->status);
         manager->status.state = BMS_STATE_FAULT;
         manager->status.fault = BMS_FAULT_INVALID_CONFIGURATION;
+
+        /* Latch the invalid configuration */
+        manager->configuration_fault_latched = 1U;
         return;
     }
 
@@ -45,6 +51,22 @@ void bms_manager_update(bms_manager_t *manager,
 
     /* Store measurements */
     manager->measurements = *measurements;
+
+    /*
+     * If the configuration was invalid at initialisation,
+     * the manager must remain in FAULT / INVALID_CONFIGURATION
+     * and must not process measurements.
+     *
+     * Only a fresh initialisation with valid limits can clear
+     * this latch.
+     */
+    if (manager->configuration_fault_latched != 0U)
+    {
+        manager->protection = BMS_PROTECTION_INVALID_MEASUREMENT;
+        manager->status.state = BMS_STATE_FAULT;
+        manager->status.fault = BMS_FAULT_INVALID_CONFIGURATION;
+        return;
+    }
 
     /* Run protection evaluation */
     manager->protection = bms_protection_evaluate(
