@@ -179,7 +179,7 @@ void uart_init(void)
      * WLEN = 3
      * FEN  = 1
      */
-    UART_LCRH = 0x60UL;
+    UART_LCRH = (3UL << 5) | (1UL << 4);
 
     /*
      * RX interrupt level:
