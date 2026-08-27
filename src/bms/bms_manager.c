@@ -1,4 +1,5 @@
 #include "bms_manager.h"
+#include "bms_limits.h"
 
 void bms_manager_init(bms_manager_t *manager, const bms_limits_t *limits)
 {
@@ -7,9 +8,27 @@ void bms_manager_init(bms_manager_t *manager, const bms_limits_t *limits)
         return;
     }
 
-    /* Αρχικοποίηση measurements με invalid status */
+    /* Initialise measurements with invalid status */
     bms_measurements_init(&manager->measurements);
 
+    /* Validate the protection limits */
+    if (bms_limits_validate(limits) != 0)
+    {
+        /*
+         * Invalid configuration – enter fail-safe fault state.
+         * Store the limits for diagnostic visibility even though
+         * they are not accepted as a valid configuration.
+         */
+        manager->limits = *limits;
+        manager->protection = BMS_PROTECTION_INVALID_MEASUREMENT;
+
+        bms_state_init(&manager->status);
+        manager->status.state = BMS_STATE_FAULT;
+        manager->status.fault = BMS_FAULT_INVALID_CONFIGURATION;
+        return;
+    }
+
+    /* Valid configuration – normal initialisation */
     manager->limits = *limits;
     manager->protection = BMS_PROTECTION_INVALID_MEASUREMENT;
 

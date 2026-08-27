@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "bms_manager.h"
+#include "bms_limits.h"   /* ΝΕΟ: για bms_limits_validate() */
 
 static bms_measurements_t make_valid_measurements(float v, float i, float t)
 {
@@ -38,7 +39,6 @@ static void test_init(void)
     assert(mgr.protection == BMS_PROTECTION_INVALID_MEASUREMENT);
     assert(mgr.measurements.voltage.status == BMS_MEAS_NOT_AVAILABLE);
     assert(mgr.limits.min_voltage == limits.min_voltage);
-    /* κλπ. */
 }
 
 static void test_update_normal(void)
@@ -55,14 +55,12 @@ static void test_update_normal(void)
     assert(mgr.status.fault == BMS_FAULT_NONE);
 }
 
-/* Νέα δοκιμή: ακριβώς στα όρια */
 static void test_update_exact_boundaries(void)
 {
     bms_manager_t mgr;
     bms_limits_t limits = default_limits();
     bms_manager_init(&mgr, &limits);
 
-    /* Τάση ακριβώς στα όρια */
     bms_measurements_t m = make_valid_measurements(40.0f, 10.0f, 25.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
@@ -72,12 +70,10 @@ static void test_update_exact_boundaries(void)
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
 
-    /* Ρεύμα ακριβώς */
     m = make_valid_measurements(48.0f, 20.0f, 25.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
 
-    /* Θερμοκρασία ακριβώς */
     m = make_valid_measurements(48.0f, 10.0f, -20.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
@@ -87,14 +83,12 @@ static void test_update_exact_boundaries(void)
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
 }
 
-/* Νέα δοκιμή: λίγο εντός / εκτός */
 static void test_update_just_inside_outside(void)
 {
     bms_manager_t mgr;
     bms_limits_t limits = default_limits();
     bms_manager_init(&mgr, &limits);
 
-    /* just inside */
     bms_measurements_t m = make_valid_measurements(40.0001f, 10.0f, 25.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
@@ -115,7 +109,6 @@ static void test_update_just_inside_outside(void)
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
 
-    /* just outside */
     m = make_valid_measurements(39.9999f, 10.0f, 25.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_UNDER_VOLTAGE);
@@ -139,32 +132,49 @@ static void test_update_just_inside_outside(void)
     assert(mgr.protection == BMS_PROTECTION_OVER_TEMPERATURE);
 }
 
-/* Νέα δοκιμή: μετάβαση FAULT → NORMAL μέσω manager */
 static void test_update_transition_fault_to_normal(void)
 {
     bms_manager_t mgr;
     bms_limits_t limits = default_limits();
     bms_manager_init(&mgr, &limits);
 
-    /* Αρχικά NORMAL */
     bms_measurements_t m = make_valid_measurements(48.0f, 10.0f, 25.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
     assert(mgr.status.state == BMS_STATE_NORMAL);
 
-    /* Προκαλούμε OVERVOLTAGE */
     m = make_valid_measurements(55.0f, 10.0f, 25.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_OVER_VOLTAGE);
     assert(mgr.status.state == BMS_STATE_FAULT);
     assert(mgr.status.fault == BMS_FAULT_OVERVOLTAGE);
 
-    /* Επιστροφή σε NORMAL */
     m = make_valid_measurements(48.0f, 10.0f, 25.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_NORMAL);
     assert(mgr.status.state == BMS_STATE_NORMAL);
     assert(mgr.status.fault == BMS_FAULT_NONE);
+}
+
+/* ΝΕΟ: RED test για REQ-028 – invalid limits configuration */
+static void test_invalid_limits_configuration(void)
+{
+    bms_manager_t mgr;
+    bms_limits_t limits = default_limits();
+
+    /* Δημιουργούμε ένα ακυρό σύνολο ορίων */
+    limits.min_voltage = 54.0f;
+    limits.max_voltage = 40.0f;
+
+    /* Επαλήθευση ότι η bms_limits_validate() το ανιχνεύει */
+    assert(bms_limits_validate(&limits) == -1);
+
+    /* Αρχικοποιούμε τον manager με τα άκυρα όρια */
+    bms_manager_init(&mgr, &limits);
+
+    /* Αναμένουμε fail‑safe κατάσταση */
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_INVALID_CONFIGURATION);
 }
 
 static void test_null_arguments(void)
@@ -197,6 +207,9 @@ int main(void)
 
     test_update_transition_fault_to_normal();
     printf("[PASS] transition fault → normal\n");
+
+    test_invalid_limits_configuration();
+    printf("[PASS] invalid_limits_configuration\n");
 
     test_null_arguments();
     printf("[PASS] null_arguments\n");
