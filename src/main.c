@@ -8,8 +8,18 @@
 #include "system_clock.h"
 #include "watchdog.h"
 
+#include "bms_manager.h"   /* ΝΕΟ: BMS manager */
+
 #include <string.h>
 #include <stdint.h>
+
+
+/* ------------------------------------------------------------
+ * Watchdog timing constants
+ * ------------------------------------------------------------ */
+
+#define WDT_TIMEOUT_MS         10000U
+#define WDT_MONITOR_PERIOD_MS   5000U
 
 
 /* ------------------------------------------------------------
@@ -25,12 +35,13 @@ extern volatile uint8_t cli_is_typing;
 
 
 /* ------------------------------------------------------------
- * Global task handles
+ * Global task handles (προστέθηκε xBMS_Handle)
  * ------------------------------------------------------------ */
 
 TaskHandle_t xCLI_Handle = NULL;
 TaskHandle_t xAI_Handle  = NULL;
 TaskHandle_t xWDT_Handle = NULL;
+TaskHandle_t xBMS_Handle = NULL;   /* ΝΕΟ */
 
 
 /* ------------------------------------------------------------
@@ -63,7 +74,15 @@ static boot_log_t persistent_log;
 
 
 /* ------------------------------------------------------------
- * Local diagnostic helpers
+ * BMS manager context (ΝΕΟ)
+ * ------------------------------------------------------------ */
+
+static bms_manager_t bms_manager;
+static bms_limits_t bms_limits;
+
+
+/* ------------------------------------------------------------
+ * Local diagnostic helpers (υπάρχον)
  * ------------------------------------------------------------ */
 
 /*
@@ -93,9 +112,31 @@ static void print_uint_dec(uint32_t value)
     }
 }
 
+/*
+ * Print a signed integer in decimal using only the UART
+ * primitives already provided by uart.h.
+ */
+static void print_int_dec(int32_t value)
+{
+    if (value < 0) {
+        uart_putc('-');
+
+        /*
+         * Avoid signed overflow for INT32_MIN.
+         */
+        uint32_t magnitude =
+            (uint32_t)(-(value + 1)) + 1U;
+
+        print_uint_dec(magnitude);
+        return;
+    }
+
+    print_uint_dec((uint32_t)value);
+}
+
 
 /* ------------------------------------------------------------
- * Diagnostic logging
+ * Diagnostic logging (υπάρχον)
  * ------------------------------------------------------------ */
 
 void update_log(uint32_t magic, const char *msg)
@@ -115,7 +156,7 @@ void update_log(uint32_t magic, const char *msg)
 
 
 /* ------------------------------------------------------------
- * HardFault handler
+ * HardFault handler (υπάρχον)
  * ------------------------------------------------------------ */
 
 void __attribute__((used)) HardFault_Handler(void)
@@ -153,7 +194,7 @@ void __attribute__((used)) HardFault_Handler(void)
 
 
 /* ------------------------------------------------------------
- * Reboot reason
+ * Reboot reason (υπάρχον)
  * ------------------------------------------------------------ */
 
 void check_reboot_reason(void)
@@ -224,7 +265,7 @@ void check_reboot_reason(void)
 
 
 /* ------------------------------------------------------------
- * FreeRTOS stack overflow hook
+ * FreeRTOS stack overflow hook (υπάρχον)
  * ------------------------------------------------------------ */
 
 void vApplicationStackOverflowHook(
@@ -244,99 +285,183 @@ void vApplicationStackOverflowHook(
 
 
 /* ------------------------------------------------------------
- * Watchdog / health monitor task
+ * BMS diagnostics (ΝΕΟ)
+ * ------------------------------------------------------------ */
+
+static void print_bms_status(void)
+{
+    const bms_manager_t *mgr = &bms_manager;
+
+    uart_puts_safe("\r\n========== BMS STATUS ==========\r\n");
+
+    uart_puts_safe("  State      : ");
+    switch (mgr->status.state)
+    {
+        case BMS_STATE_INIT:   uart_puts_safe("INIT\r\n"); break;
+        case BMS_STATE_NORMAL: uart_puts_safe("NORMAL\r\n"); break;
+        case BMS_STATE_WARNING:uart_puts_safe("WARNING\r\n"); break;
+        case BMS_STATE_FAULT:  uart_puts_safe("FAULT\r\n"); break;
+        default:               uart_puts_safe("UNKNOWN\r\n"); break;
+    }
+
+    uart_puts_safe("  Protection : ");
+    switch (mgr->protection)
+    {
+        case BMS_PROTECTION_NORMAL:              uart_puts_safe("NORMAL\r\n"); break;
+        case BMS_PROTECTION_OVER_VOLTAGE:        uart_puts_safe("OVER_VOLTAGE\r\n"); break;
+        case BMS_PROTECTION_UNDER_VOLTAGE:       uart_puts_safe("UNDER_VOLTAGE\r\n"); break;
+        case BMS_PROTECTION_OVER_CURRENT:        uart_puts_safe("OVER_CURRENT\r\n"); break;
+        case BMS_PROTECTION_OVER_TEMPERATURE:    uart_puts_safe("OVER_TEMPERATURE\r\n"); break;
+        case BMS_PROTECTION_UNDER_TEMPERATURE:   uart_puts_safe("UNDER_TEMPERATURE\r\n"); break;
+        case BMS_PROTECTION_INVALID_MEASUREMENT: uart_puts_safe("INVALID_MEASUREMENT\r\n"); break;
+        default:                                 uart_puts_safe("UNKNOWN\r\n"); break;
+    }
+
+    uart_puts_safe("  Measurements:\r\n");
+
+    uart_puts_safe("    Voltage   : ");
+    print_uint_dec((uint32_t)(mgr->measurements.voltage.value * 100.0f));
+    uart_puts_safe(" cV\r\n");
+
+    uart_puts_safe("    Current   : ");
+    print_uint_dec((uint32_t)(mgr->measurements.current.value * 1000.0f));
+    uart_puts_safe(" mA\r\n");
+
+    uart_puts_safe("    Temp.     : ");
+    print_int_dec(
+        (int32_t)(mgr->measurements.temperature.value * 10.0f)
+    );
+    uart_puts_safe(" x10 C\r\n");
+
+    uart_puts_safe("================================\r\n");
+}
+
+
+/* ------------------------------------------------------------
+ * BMS mock measurement (ΝΕΟ)
+ * ------------------------------------------------------------ */
+
+static bms_measurements_t make_bms_measurement(
+    float voltage,
+    float current,
+    float temperature)
+{
+    bms_measurements_t m;
+
+    bms_measurements_init(&m);
+
+    m.voltage.value = voltage;
+    m.voltage.status = BMS_MEAS_VALID;
+
+    m.current.value = current;
+    m.current.status = BMS_MEAS_VALID;
+
+    m.temperature.value = temperature;
+    m.temperature.status = BMS_MEAS_VALID;
+
+    return m;
+}
+
+
+/* ------------------------------------------------------------
+ * BMS task (ΝΕΟ)
+ * ------------------------------------------------------------ */
+
+void vTaskBMS(void *pvParameters)
+{
+    (void)pvParameters;
+
+    typedef struct
+    {
+        float voltage;
+        float current;
+        float temperature;
+        const char *description;
+    } bms_test_vector_t;
+
+    static const bms_test_vector_t vectors[] = {
+        {48.0f, 10.0f,  25.0f, "Normal"},
+        {55.0f, 10.0f,  25.0f, "Overvoltage"},
+        {39.0f, 10.0f,  25.0f, "Undervoltage"},
+        {48.0f, 21.0f,  25.0f, "Overcurrent"},
+        {48.0f, 10.0f,  61.0f, "Overtemperature"},
+        {48.0f, 10.0f, -21.0f, "Undertemperature"},
+        {48.0f, 10.0f,  25.0f, "Normal again"}
+    };
+
+    const size_t num_vectors = sizeof(vectors) / sizeof(vectors[0]);
+    size_t index = 0U;
+
+    for (;;)
+    {
+        health_monitor_heartbeat(HEALTH_TASK_BMS);
+
+        const bms_test_vector_t *vector = &vectors[index];
+
+        bms_measurements_t measurement = make_bms_measurement(
+            vector->voltage,
+            vector->current,
+            vector->temperature
+        );
+
+        uart_puts_safe("\r\n[BMS] Update: ");
+        uart_puts_safe(vector->description);
+        uart_puts_safe("\r\n");
+
+        bms_manager_update(&bms_manager, &measurement);
+        print_bms_status();
+
+        index++;
+        if (index >= num_vectors) {
+            index = 0U;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+}
+
+
+/* ------------------------------------------------------------
+ * Watchdog / health monitor task (με βελτιωμένο monitoring period)
  * ------------------------------------------------------------ */
 
 void vTaskWatchdogMonitor(void *pvParameters)
 {
     (void)pvParameters;
 
-    /*
-     * Health-monitor window:
-     *
-     *     5000 ms
-     *
-     * The hardware watchdog is configured slightly above the
-     * health-monitor period so that the monitor has time to
-     * detect a task failure and record the diagnostic reason
-     * before the hardware watchdog performs the final reset.
-     */
     health_monitor_init();
 
-    watchdog_init(6000);
+    watchdog_init(WDT_TIMEOUT_MS);
 
-    for (;;) {
-
+    for (;;)
+    {
         if (!cli_is_typing) {
             uart_putc('.');
         }
 
-        if (health_monitor_all_healthy()) {
-
-            /*
-             * All monitored tasks reported activity during the
-             * current health window.
-             *
-             * Only now is it safe to feed the hardware watchdog.
-             */
+        if (health_monitor_all_healthy())
+        {
             watchdog_feed();
-
             health_monitor_clear();
-
-        } else {
-
-            /*
-             * Do NOT feed the hardware watchdog.
-             *
-             * Record the diagnostic reason and allow the
-             * hardware watchdog to perform the actual reset.
-             */
-            update_log(
-                REBOOT_MAGIC_WDT,
-                "Task Hang (Heartbeat Timeout)"
-            );
-
-            uart_puts_safe(
-                "\r\n[WDT] Health monitor failure\r\n"
-            );
-
-            /*
-             * Give the UART/diagnostic path a short scheduling
-             * window, but deliberately do not feed the WDT.
-             *
-             * The 6-second hardware watchdog timeout will then
-             * force the reset.
-             */
-            vTaskDelay(
-                pdMS_TO_TICKS(100)
-            );
+        }
+        else
+        {
+            update_log(REBOOT_MAGIC_WDT, "Task Hang (Heartbeat Timeout)");
+            uart_puts_safe("\r\n[WDT] Health monitor failure\r\n");
+            vTaskDelay(pdMS_TO_TICKS(100));
 
             for (;;) {
-                /*
-                 * Intentionally stop feeding the hardware WDT.
-                 *
-                 * Hardware watchdog performs the final reset.
-                 */
-                vTaskDelay(
-                    pdMS_TO_TICKS(100)
-                );
+                vTaskDelay(pdMS_TO_TICKS(100));
             }
         }
 
-        /*
-         * Health-monitor window:
-         *
-         *     5000 ms
-         *     500 ticks @ 100 Hz
-         */
-        vTaskDelay(
-            pdMS_TO_TICKS(5000)
-        );
+        vTaskDelay(pdMS_TO_TICKS(WDT_MONITOR_PERIOD_MS));
     }
 }
 
+
 /* ------------------------------------------------------------
- * CLI task
+ * CLI task (υπάρχον, αμετάβλητο)
  * ------------------------------------------------------------ */
 
 void vTaskCLI(void *pvParameters)
@@ -345,62 +470,35 @@ void vTaskCLI(void *pvParameters)
 
     char cmd_buf[64];
 
-    for (;;) {
+    for (;;)
+    {
+        health_monitor_heartbeat(HEALTH_TASK_CLI);
 
-        health_monitor_heartbeat(
-            HEALTH_TASK_CLI
-        );
-
-        uart_puts_safe(
-            "rtos_msv> "
-        );
-
-        shell_readline(
-            cmd_buf,
-            sizeof(cmd_buf)
-        );
+        uart_puts_safe("rtos_msv> ");
+        shell_readline(cmd_buf, sizeof(cmd_buf));
 
         if (cmd_buf[0] != '\0') {
             shell_process(cmd_buf);
         }
 
-        /*
-         * 50 ms at configTICK_RATE_HZ = 100 Hz:
-         *
-         *     5 FreeRTOS ticks
-         */
-        vTaskDelay(
-            pdMS_TO_TICKS(50)
-        );
+        vTaskDelay(pdMS_TO_TICKS(50));
     }
 }
 
 
 /* ------------------------------------------------------------
- * Predictive AI task
+ * Predictive AI task (υπάρχον, αμετάβλητο)
  * ------------------------------------------------------------ */
 
 void vTaskPredictiveAI(void *pvParameters)
 {
     (void)pvParameters;
 
-    for (;;) {
-
-        health_monitor_heartbeat(
-            HEALTH_TASK_AI
-        );
-
-        latest_prediction =
-            ml_predict_next_temp(25.0f);
-
-        /*
-         * 2000 ms at 100 Hz:
-         *
-         *     200 FreeRTOS ticks
-         */
-        vTaskDelay(
-            pdMS_TO_TICKS(2000)
-        );
+    for (;;)
+    {
+        health_monitor_heartbeat(HEALTH_TASK_AI);
+        latest_prediction = ml_predict_next_temp(25.0f);
+        vTaskDelay(pdMS_TO_TICKS(2000));
     }
 }
 
@@ -411,102 +509,33 @@ void vTaskPredictiveAI(void *pvParameters)
 
 int main(void)
 {
-    /*
-     * --------------------------------------------------------
-     * 1. Configure the LM3S6965/QEMU system clock.
-     * --------------------------------------------------------
-     *
-     * The firmware clock contract is:
-     *
-     *     SYSTEM_CLOCK_HZ = 50 MHz
-     *
-     * system_clock_init() programs the LM3S system-control
-     * registers before any timing-dependent subsystem starts.
-     *
-     * This is the hardware/QEMU clock configuration.
-     */
+    /* 1. System clock */
     system_clock_init();
 
-
-    /*
-     * --------------------------------------------------------
-     * 2. Initialize UART.
-     * --------------------------------------------------------
-     */
+    /* 2. UART */
     uart_init();
 
-
-    /*
-     * --------------------------------------------------------
-     * 3. Report persistent reboot diagnostics.
-     * --------------------------------------------------------
-     */
+    /* 3. Reboot diagnostics */
     check_reboot_reason();
 
+    /* 4. BMS initialisation (ΝΕΟ) */
+    bms_limits.min_voltage = 40.0f;
+    bms_limits.max_voltage = 54.0f;
+    bms_limits.max_current = 20.0f;
+    bms_limits.min_temperature = -20.0f;
+    bms_limits.max_temperature = 60.0f;
 
-    /*
-     * --------------------------------------------------------
-     * 4. Create application tasks.
-     * --------------------------------------------------------
-     */
+    bms_manager_init(&bms_manager, &bms_limits);
+    uart_puts_safe("[BMS] Manager initialised.\r\n");
 
-    xTaskCreate(
-        vTaskCLI,
-        "CLI",
-        512,
-        NULL,
-        2,
-        &xCLI_Handle
-    );
+    /* 5. Create tasks */
+    xTaskCreate(vTaskCLI, "CLI", 512, NULL, 2, &xCLI_Handle);
+    xTaskCreate(vTaskPredictiveAI, "AI", 256, NULL, 2, &xAI_Handle);
+    xTaskCreate(vTaskWatchdogMonitor, "WDT", 256, NULL, 4, &xWDT_Handle);
+    xTaskCreate(vTaskBMS, "BMS", 384, NULL, 1, &xBMS_Handle);  /* ΝΕΟ */
 
-    xTaskCreate(
-        vTaskPredictiveAI,
-        "AI",
-        256,
-        NULL,
-        2,
-        &xAI_Handle
-    );
-
-    xTaskCreate(
-        vTaskWatchdogMonitor,
-        "WDT",
-        256,
-        NULL,
-        4,
-        &xWDT_Handle
-    );
-
-
-    /*
-     * --------------------------------------------------------
-     * 5. Start FreeRTOS.
-     * --------------------------------------------------------
-     *
-     * FreeRTOS configuration:
-     *
-     *     configCPU_CLOCK_HZ = SYSTEM_CLOCK_HZ
-     *                         = 50,000,000 Hz
-     *
-     *     configTICK_RATE_HZ = 100 Hz
-     *
-     * Therefore:
-     *
-     *     tick period = 1 / 100
-     *                 = 10 ms
-     *
-     *     SysTick reload
-     *         = 50,000,000 / 100 - 1
-     *         = 499,999
-     *
-     * The Cortex-M3 FreeRTOS port configures SysTick using
-     * these values.
-     */
+    /* 6. Start scheduler */
     vTaskStartScheduler();
 
-
-    /*
-     * The scheduler should never return.
-     */
     return 0;
 }

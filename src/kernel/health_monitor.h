@@ -6,6 +6,7 @@
 typedef enum {
     HEALTH_TASK_CLI = 0,
     HEALTH_TASK_AI,
+    HEALTH_TASK_BMS,    /* ΝΕΟ: BMS task */
     HEALTH_TASK_COUNT
 } health_task_id_t;
 
