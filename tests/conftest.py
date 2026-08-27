@@ -111,7 +111,7 @@ class RecoveryResult:
 
 
 class RecoveryHelper:
-    def trigger(self, command, timeout=15.0):
+    def trigger(self, command, timeout=30.0):
         """
         Στέλνει `freeze` ή `crash` και επιστρέφει το πλήρες output
         μέχρι το post-reset CLI prompt.
