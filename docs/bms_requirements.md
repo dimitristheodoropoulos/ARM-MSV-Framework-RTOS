@@ -145,6 +145,10 @@ tests/test_bms_measurements.py
 
 The BMS software shall provide an interface for obtaining the battery pack current measurement.
 
+The battery current measurement shall be represented as a signed value. The sign represents the measurement polarity according to the upstream current-sensing interface. The BMS protection layer shall not assign charging or discharging semantics to the sign at this stage.
+
+For over-current protection, the configured `max_current` limit shall represent the maximum permitted current magnitude, independent of current direction.
+
 **Priority:** High
 
 **Verification:** Unit test / Integration test
@@ -153,12 +157,13 @@ The BMS software shall provide an interface for obtaining the battery pack curre
 
 ```text
 src/bms/bms_measurements.c
+src/bms/bms_measurements.h
 ```
 
 **Planned test:**
 
 ```text
-tests/test_bms_measurements.py
+tests/unit/test_bms_measurements.c
 ```
 
 ---
@@ -288,7 +293,17 @@ This requirement prevents ambiguous behavior at protection boundaries.
 
 ### BMS-REQ-009 — Over-Current Detection
 
-The BMS software shall detect a battery current condition exceeding the configured over-current protection threshold.
+The BMS software shall detect a battery current condition whose magnitude exceeds the configured over-current protection threshold.
+
+The over-current comparison shall be independent of current measurement polarity.
+
+For a configured `max_current` of `L`:
+
+```text
+|current| > L
+        ↓
+OVER_CURRENT fault
+```
 
 **Priority:** Critical
 
@@ -298,7 +313,16 @@ The BMS software shall detect a battery current condition exceeding the configur
 
 ### BMS-REQ-010 — Current Boundary Handling
 
-The BMS software shall define deterministic behavior when measured current is exactly equal to the configured over-current threshold.
+The BMS software shall define deterministic behavior when the absolute value of the measured current is exactly equal to the configured over-current threshold.
+
+The boundary shall be inclusive of the allowed current magnitude:
+
+```text
+|current| <= max_current  → no over-current fault
+|current| >  max_current  → OVER_CURRENT
+```
+
+Both positive and negative current values shall be covered by boundary-value testing.
 
 **Priority:** High
 

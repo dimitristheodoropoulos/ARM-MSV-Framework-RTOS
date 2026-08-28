@@ -1,4 +1,5 @@
 #include "bms_protection.h"
+#include <math.h>
 
 bms_protection_status_t bms_protection_evaluate(
     const bms_measurements_t *measurements,
@@ -24,7 +25,7 @@ bms_protection_status_t bms_protection_evaluate(
         return BMS_PROTECTION_UNDER_VOLTAGE;
     }
 
-    if (measurements->current.value > limits->max_current)
+    if (fabsf(measurements->current.value) > limits->max_current)
     {
         return BMS_PROTECTION_OVER_CURRENT;
     }

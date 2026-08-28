@@ -2,7 +2,7 @@
 #include <stdio.h>
 
 #include "bms_manager.h"
-#include "bms_limits.h"   /* ΝΕΟ: για bms_limits_validate() */
+#include "bms_limits.h"
 
 static bms_measurements_t make_valid_measurements(float v, float i, float t)
 {
@@ -119,9 +119,29 @@ static void test_update_just_inside_outside(void)
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_OVER_VOLTAGE);
 
+    /* Positive current just outside */
     m = make_valid_measurements(48.0f, 20.0001f, 25.0f);
     bms_manager_update(&mgr, &m);
     assert(mgr.protection == BMS_PROTECTION_OVER_CURRENT);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_OVERCURRENT);
+
+    /* Negative current boundary tests */
+    m = make_valid_measurements(48.0f, -20.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+    assert(mgr.status.state == BMS_STATE_NORMAL);
+    assert(mgr.status.fault == BMS_FAULT_NONE);
+
+    m = make_valid_measurements(48.0f, -19.9999f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+
+    m = make_valid_measurements(48.0f, -20.0001f, 25.0f);
+    bms_manager_update(&mgr, &m);
+    assert(mgr.protection == BMS_PROTECTION_OVER_CURRENT);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_OVERCURRENT);
 
     m = make_valid_measurements(48.0f, 10.0f, -20.0001f);
     bms_manager_update(&mgr, &m);
@@ -174,9 +194,7 @@ static void test_invalid_limits_configuration(void)
     assert(mgr.status.fault == BMS_FAULT_INVALID_CONFIGURATION);
 }
 
-/* ΝΕΟ RED test: configuration latch – after invalid init, even valid
- * measurements must NOT recover to NORMAL.
- */
+/* Configuration latch test */
 static void test_invalid_configuration_is_latched(void)
 {
     bms_manager_t mgr;

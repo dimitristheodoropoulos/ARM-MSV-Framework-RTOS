@@ -36,7 +36,7 @@ int main(void)
     printf("[BMS PROTECTION UNIT] Running extended boundary tests...\n");
 
     /* ------------------------------------------------------------
-     * Υπάρχουσες δοκιμές (βασικές)
+     * Βασικές δοκιμές
      * ------------------------------------------------------------ */
     m = valid_measurements();
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
@@ -67,10 +67,8 @@ int main(void)
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_INVALID_MEASUREMENT);
 
     /* ------------------------------------------------------------
-     * Νέες δοκιμές οριακών τιμών
+     * Οριακές τιμές (voltage)
      * ------------------------------------------------------------ */
-
-    /* Voltage: ακριβώς στα όρια */
     m = valid_measurements();
     m.voltage.value = 40.0f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
@@ -78,34 +76,44 @@ int main(void)
     m.voltage.value = 54.0f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
 
-    /* Voltage: λίγο εντός */
     m.voltage.value = 40.0001f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
 
     m.voltage.value = 53.9999f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
 
-    /* Voltage: λίγο εκτός */
     m.voltage.value = 39.9999f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_UNDER_VOLTAGE);
 
     m.voltage.value = 54.0001f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_OVER_VOLTAGE);
 
-    /* Current: ακριβώς όριο */
+    /* ------------------------------------------------------------
+     * Οριακές τιμές (current) – θετικές και αρνητικές
+     * ------------------------------------------------------------ */
     m = valid_measurements();
     m.current.value = 20.0f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
 
-    /* Current: λίγο εντός */
     m.current.value = 19.9999f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
 
-    /* Current: λίγο εκτός */
     m.current.value = 20.0001f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_OVER_CURRENT);
 
-    /* Temperature: ακριβώς όρια */
+    /* Negative current */
+    m.current.value = -20.0f;
+    assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
+
+    m.current.value = -19.9999f;
+    assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
+
+    m.current.value = -20.0001f;
+    assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_OVER_CURRENT);
+
+    /* ------------------------------------------------------------
+     * Οριακές τιμές (temperature)
+     * ------------------------------------------------------------ */
     m = valid_measurements();
     m.temperature.value = -20.0f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
@@ -113,14 +121,12 @@ int main(void)
     m.temperature.value = 60.0f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
 
-    /* Temperature: λίγο εντός */
     m.temperature.value = -19.9999f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
 
     m.temperature.value = 59.9999f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_NORMAL);
 
-    /* Temperature: λίγο εκτός */
     m.temperature.value = -20.0001f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_UNDER_TEMPERATURE);
 
