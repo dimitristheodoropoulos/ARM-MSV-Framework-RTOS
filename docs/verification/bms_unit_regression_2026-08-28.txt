@@ -1,0 +1,72 @@
+========================================
+ BMS UNIT REGRESSION
+========================================
+
+[BMS measurements]
+[BMS UNIT] Running 14 tests...
+[PASS] init_sets_measurements_unavailable
+[PASS] init_null_pointer
+[PASS] valid_measurements_pass_validation
+[PASS] invalid_voltage_fails_validation
+[PASS] invalid_current_fails_validation
+[PASS] invalid_temperature_fails_validation
+[PASS] not_available_measurement_fails_validation
+[PASS] out_of_range_measurement_fails_validation
+[PASS] null_validation_fails
+[PASS] nan_voltage_rejected
+[PASS] nan_current_rejected
+[PASS] nan_temperature_rejected
+[PASS] infinity_voltage_rejected
+[PASS] negative_infinity_current_rejected
+[BMS UNIT] 19 assertions passed.
+[PASS] BMS measurements
+
+[BMS limits]
+[BMS LIMITS UNIT] Running validation tests...
+[PASS] valid configuration
+[PASS] null configuration
+[PASS] voltage equality rejected
+[PASS] voltage reversal rejected
+[PASS] temperature equality rejected
+[PASS] temperature reversal rejected
+[PASS] zero current rejected
+[PASS] negative current rejected
+[PASS] NaN rejected
+[PASS] infinity rejected
+[BMS LIMITS UNIT] All validation tests passed.
+[PASS] BMS limits
+
+[BMS protection]
+[BMS PROTECTION UNIT] Running extended boundary tests...
+[BMS PROTECTION UNIT] All extended tests passed.
+[PASS] BMS protection
+
+[BMS state]
+[BMS STATE UNIT] Running tests with transitions...
+[PASS] init
+[PASS] normal
+[PASS] invalid_measurement
+[PASS] transition normal → fault → normal
+[PASS] transition fault → normal
+[PASS] multiple faults transitions
+[PASS] null_init
+[PASS] null_update
+[BMS STATE UNIT] All tests passed.
+[PASS] BMS state
+
+[BMS manager]
+[BMS MANAGER UNIT] Running extended end-to-end tests...
+[PASS] init
+[PASS] update_normal
+[PASS] exact boundaries
+[PASS] just inside/outside
+[PASS] transition fault → normal
+[PASS] invalid_limits_configuration
+[PASS] invalid_configuration_is_latched
+[PASS] null_arguments
+[BMS MANAGER UNIT] All tests passed.
+[PASS] BMS manager
+
+========================================
+ BMS REGRESSION RESULT: 5/5 PASS
+========================================
