@@ -5,7 +5,7 @@
 This document records the verification status of the BMS software foundation
 integrated into the ARM-MSV-Framework-RTOS project.
 
-The purpose of this report is to distinguish:
+The purpose of this report is to maintain explicit traceability from:
 
 ```text
 Requirement
@@ -16,172 +16,610 @@ Test
     ↓
 Evidence
     ↓
-Verified
+Verification Status
 ```
 
-A requirement is not considered verified based solely on architectural intent
-or source-code existence.
+A requirement is not considered **VERIFIED** based solely on architectural
+intent, source-code existence, or an unexecuted design concept.
+
+Verification status is based on the implementation and test evidence available
+at the defined Git baseline.
+
+This document therefore distinguishes between:
+
+* **VERIFIED** — implementation exists and objective test/evidence supports the
+  requirement.
+* **IMPLEMENTED / NOT VERIFIED** — relevant implementation exists, but the
+  available evidence is insufficient for a verification claim.
+* **PENDING** — required functionality or evidence is not currently available.
+* **OUT-OF-SCOPE** — explicitly excluded from the current software foundation
+  baseline.
 
 ---
 
 ## 2. Verification Baseline
 
-**Verification date:** 2026-08-27
-**Git baseline:** `c33562c fix: harden BMS measurement validation and configuration latch`
-**Branch:** `main`
+**Verification date:** 2026-08-28
+
+**Git baseline:**
+
+```text
+724a7ea test: add BMS unit regression evidence
+```
+
+**Full commit:**
+
+```text
+724a7ea4317d36842e7fe2a62d1fdc13f422a4bd
+```
+
+**Branch:**
+
+```text
+main
+```
+
 **Repository state:** CLEAN
+
+The baseline commit adds the BMS unit-regression execution script and
+corresponding verification evidence while preserving the existing BMS
+implementation.
+
+The verification results in this document refer to the repository state at
+this baseline.
 
 ---
 
 ## 3. Build Verification
 
-```bash
-make clean && make firmware.elf
-```
-
-**Result:** PASS
-**Firmware image:**
-
-```text
-text    data    bss     dec     hex
-34320   84      10980   45384   b148
-```
-
----
-
-## 4. Regression Verification
+The firmware build was executed as part of:
 
 ```bash
 make test
 ```
 
-**Result:** 17 passed, 0 failed
-**Runtime:** ~35.0 s
+which performs the firmware link/build before executing the Python regression
+suite.
+
+The firmware image reported by the build was:
+
+```text
+text    data    bss     dec     hex
+34908      84   10980   45972   b394
+```
+
+**Build result:** PASS
+
+**Firmware image size:**
+
+```text
+45972 bytes
+```
+
+The firmware size recorded here supersedes the earlier value of 45384 bytes
+from the previous verification baseline.
 
 ---
 
-## 5. BMS Software Components (actual)
+## 4. Full Regression Verification
+
+The project-level regression was executed with:
+
+```bash
+make test
+```
+
+Result:
+
+```text
+pytest -q
+.................                                                        [100%]
+17 passed in 34.98s
+```
+
+**Result:** 17 passed, 0 failed
+
+**Runtime:** approximately 35 seconds
+
+This establishes a clean project-level regression result at the
+`724a7ea` baseline.
+
+---
+
+## 5. BMS Unit Regression Verification
+
+A dedicated BMS unit-test runner is included in:
+
+```text
+tests/run_bms_unit_tests.sh
+```
+
+It independently builds and executes the five BMS unit-test targets:
+
+```text
+BMS measurements
+BMS limits
+BMS protection
+BMS state
+BMS manager
+```
+
+The regression was executed with:
+
+```bash
+./tests/run_bms_unit_tests.sh
+```
+
+Result:
+
+```text
+========================================
+ BMS REGRESSION RESULT: 5/5 PASS
+========================================
+```
+
+### 5.1 BMS Measurements
+
+The measurements unit suite reports:
+
+```text
+[BMS UNIT] Running 14 tests...
+[BMS UNIT] 19 assertions passed.
+[PASS] BMS measurements
+```
+
+The tested behaviour includes:
+
+* initialization to unavailable measurement status
+* null-pointer handling
+* valid measurement validation
+* invalid voltage/current/temperature status rejection
+* unavailable measurement rejection
+* out-of-range measurement rejection
+* null validation input rejection
+* NaN rejection
+* positive infinity rejection
+* negative infinity rejection
+
+### 5.2 BMS Limits
+
+The limits unit suite verifies:
+
+* valid configuration acceptance
+* null configuration rejection
+* invalid voltage ordering
+* invalid temperature ordering
+* zero current limit rejection
+* negative current limit rejection
+* NaN rejection
+* infinity rejection
+
+Result:
+
+```text
+[BMS LIMITS UNIT] All validation tests passed.
+[PASS] BMS limits
+```
+
+### 5.3 BMS Protection
+
+The protection unit suite executes extended protection and boundary tests.
+
+Result:
+
+```text
+[BMS PROTECTION UNIT] All extended tests passed.
+[PASS] BMS protection
+```
+
+The tests cover voltage, current and temperature protection behaviour,
+including normal and boundary conditions.
+
+### 5.4 BMS State
+
+The state unit suite verifies:
+
+* initialization
+* normal state
+* invalid measurement fault
+* normal → fault → normal transition
+* fault → normal transition
+* multiple fault transitions
+* null initialization
+* null update handling
+
+Result:
+
+```text
+[BMS STATE UNIT] All tests passed.
+[PASS] BMS state
+```
+
+### 5.5 BMS Manager
+
+The manager unit suite verifies:
+
+* manager initialization
+* normal operation
+* exact protection boundaries
+* just-inside / just-outside boundaries
+* fault → normal transition
+* invalid configuration handling
+* invalid configuration latching
+* null argument handling
+
+Result:
+
+```text
+[BMS MANAGER UNIT] All tests passed.
+[PASS] BMS manager
+```
+
+### 5.6 BMS Regression Summary
+
+```text
+BMS measurements    PASS
+BMS limits          PASS
+BMS protection      PASS
+BMS state           PASS
+BMS manager         PASS
+
+Overall: 5/5 PASS
+```
+
+The detailed execution evidence is recorded in:
+
+```text
+docs/verification/bms_unit_regression_2026-08-28.txt
+```
+
+---
+
+## 6. BMS Software Components
+
+The BMS software foundation currently contains the following modules:
 
 ```text
 src/bms/
 ├── bms_manager.c / .h
 ├── bms_measurements.c / .h
 ├── bms_protection.c / .h
-└── bms_state.c / .h
+├── bms_state.c / .h
+└── bms_limits.c / .h
 ```
 
-**No separate `bms_limits`, `bms_faults`, `bms_diagnostics` modules exist.**
+The implementation therefore contains a dedicated limits module in addition to
+the measurement, protection, state and manager modules.
+
+There are no separate dedicated:
+
+```text
+bms_faults
+bms_diagnostics
+bms_can
+bms_i2c
+```
+
+modules in the current BMS software foundation.
+
+Fault representation is currently part of the BMS state/protection model rather
+than a separate fault-management subsystem.
 
 ---
 
-## 6. Requirement Status (64 individual rows)
+## 7. Requirement Status
 
-| ID  | Status                         | Evidence / Gap |
-| --- | ------------------------------ | -------------- |
-| 001 | **PENDING**                    | No measurement acquisition interface – only storage structs |
-| 002 | **PENDING**                    | Same as 001 |
-| 003 | **PENDING**                    | Same as 001 |
-| 004 | **VERIFIED**                   | `bms_measurements_validate()` exists and is called by protection; tested |
-| 005 | **VERIFIED**                   | `bms_measurement_status_t` enum exists; tested |
-| 006 | **VERIFIED**                   | Over‑voltage detection in `bms_protection_evaluate()`; boundary tests |
-| 007 | **VERIFIED**                   | Under‑voltage detection; boundary tests |
-| 008 | **VERIFIED**                   | Exact voltage boundaries tested (40.0, 54.0, 40.0001, 53.9999, 39.9999, 54.0001) |
-| 009 | **VERIFIED**                   | Over‑current detection; boundary tests |
-| 010 | **VERIFIED**                   | Exact current boundary tested (20.0, 20.0001) |
-| 011 | **VERIFIED**                   | Invalid current → `BMS_PROTECTION_INVALID_MEASUREMENT`; tested |
-| 012 | **VERIFIED**                   | Over‑temperature detection; boundary tests |
-| 013 | **VERIFIED**                   | Under‑temperature detection; boundary tests |
-| 014 | **VERIFIED**                   | Exact temperature boundaries tested (-20.0, 60.0, ±0.0001) |
-| 015 | **IMPLEMENTED / NOT VERIFIED** | Fault IDs exist but no dedicated fault‑management layer |
-| 016 | **PENDING**                    | No simultaneous multi‑fault representation |
-| 017 | **IMPLEMENTED / NOT VERIFIED** | Fault→normal behaviour exists; explicit latching policy missing |
-| 018 | **VERIFIED**                   | Deterministic clearing via `NORMAL` transition tested |
-| 019 | **PENDING**                    | No critical‑vs‑diagnostic classification |
-| 020 | **VERIFIED**                   | `BMS_STATE_INIT` exists and tested |
-| 021 | **IMPLEMENTED / NOT VERIFIED** | `BMS_STATE_NORMAL` exists but monitoring state not explicit |
-| 022 | **VERIFIED**                   | Protection → `BMS_STATE_FAULT` tested |
-| 023 | **PENDING**                    | No `BMS_STATE_RECOVERY` |
-| 024 | **VERIFIED**                   | Deterministic transitions tested |
-| 025 | **PENDING**                    | No handling of invalid `bms_state_t` values |
-| 026 | **VERIFIED**                   | Limits stored independently (`bms_limits_t`) |
-| 027 | **VERIFIED**                   | `bms_limits_validate()` implemented; unit-tested |
-| 028 | **VERIFIED**                   | Invalid limits rejected in `bms_manager_init()` with configuration latch; tested |
-| 029 | **IMPLEMENTED / NOT VERIFIED** | `print_bms_status()` exists but no dedicated diagnostics layer |
-| 030 | **IMPLEMENTED / NOT VERIFIED** | Fault visibility via print; no dedicated interface |
-| 031 | **PENDING**                    | No fault‑context interface |
-| 032 | **PENDING**                    | No CAN software abstraction |
-| 033 | **PENDING**                    | No CAN frame representation |
-| 034 | **PENDING**                    | No CAN frame encoding |
-| 035 | **PENDING**                    | No CAN frame decoding |
-| 036 | **PENDING**                    | No CAN error handling |
-| 037 | **PENDING**                    | CAN hardware integration missing – not declared out‑of‑scope |
-| 038 | **PENDING**                    | No I2C measurement abstraction |
-| 039 | **PENDING**                    | No I2C error propagation |
-| 040 | **PENDING**                    | No measurement communication failure handling |
-| 041 | **VERIFIED**                   | BMS task integrated in `main.c`; core modules independent |
-| 042 | **IMPLEMENTED / NOT VERIFIED** | Periodic task exists; no dedicated timing verification |
-| 043 | **VERIFIED**                   | Core tests run without scheduler |
-| 044 | **VERIFIED**                   | Invalid/null inputs tested |
-| 045 | **VERIFIED**                   | Protection boundaries deterministic |
-| 046 | **VERIFIED**                   | NaN/+Inf/-Inf rejected by `bms_measurements_validate()` via `isfinite()`; dedicated unit tests |
-| 047 | **VERIFIED**                   | Automated unit tests exist |
-| 048 | **VERIFIED**                   | Boundary tests exist |
-| 049 | **PENDING**                    | No simultaneous fault‑combination tests |
-| 050 | **VERIFIED**                   | Manager test exercises measurement→protection→state |
-| 051 | **VERIFIED**                   | `make test` passes (17 tests) |
-| 052 | **VERIFIED**                   | Host‑based tests provide software‑level verification |
-| 053 | **IMPLEMENTED / NOT VERIFIED** | Report provides traceability but not fully automated |
-| 054 | **PENDING**                    | Tests do not contain requirement IDs |
-| 055 | **VERIFIED**                   | Unimplemented features explicitly marked pending |
-| 056 | **VERIFIED**                   | Modular C implementation |
-| 057 | **VERIFIED**                   | Separation of concerns observed |
-| 058 | **IMPLEMENTED / NOT VERIFIED** | No static‑analysis result recorded |
-| 059 | **VERIFIED**                   | Defensive checks present and tested |
-| 060 | **VERIFIED**                   | Reproducible via `make verify` |
-| 061 | **VERIFIED**                   | Deterministic behaviour for identical inputs |
-| 062 | **VERIFIED**                   | Core modules testable without scheduler |
-| 063 | **VERIFIED**                   | Clear interfaces between modules |
-| 064 | **VERIFIED**                   | No direct ARM register access in BMS core |
+The following table records the audited status of all 64 requirements against
+the `724a7ea` baseline.
 
----
-
-## 7. Verification Summary
-
-| Status                         | Count |
-| ------------------------------ | ----: |
-| **VERIFIED**                   |    35 |
-| **IMPLEMENTED / NOT VERIFIED** |     7 |
-| **PENDING**                    |    22 |
-| **OUT-OF-SCOPE**               |     0 |
-| **TOTAL**                      |    64 |
+| ID  | Status                         | Evidence / Gap                                                                                                                                                     |
+| --- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 001 | **PENDING**                    | No measurement acquisition interface; current implementation provides measurement storage/validation rather than a hardware acquisition path.                      |
+| 002 | **PENDING**                    | No implemented measurement acquisition mechanism corresponding to the requirement.                                                                                 |
+| 003 | **PENDING**                    | No implemented measurement acquisition mechanism corresponding to the requirement.                                                                                 |
+| 004 | **VERIFIED**                   | `bms_measurements_validate()` is implemented and exercised by unit tests; protection uses measurement validation.                                                  |
+| 005 | **VERIFIED**                   | `bms_measurement_status_t` is implemented and exercised by measurement tests.                                                                                      |
+| 006 | **VERIFIED**                   | Over-voltage detection is implemented in `bms_protection_evaluate()` and covered by protection/manager boundary tests.                                             |
+| 007 | **VERIFIED**                   | Under-voltage detection is implemented and covered by boundary tests.                                                                                              |
+| 008 | **VERIFIED**                   | Voltage boundaries are explicitly tested, including 40.0 V, 54.0 V, values just inside and values just outside the limits.                                         |
+| 009 | **VERIFIED**                   | Over-current detection is implemented and covered by protection/manager tests.                                                                                     |
+| 010 | **VERIFIED**                   | Current boundary behaviour is explicitly tested, including the configured positive and negative current limits and values just outside them.                       |
+| 011 | **VERIFIED**                   | Invalid current measurement status is rejected and results in `BMS_PROTECTION_INVALID_MEASUREMENT`; unit-tested.                                                   |
+| 012 | **VERIFIED**                   | Over-temperature detection is implemented and covered by boundary tests.                                                                                           |
+| 013 | **VERIFIED**                   | Under-temperature detection is implemented and covered by boundary tests.                                                                                          |
+| 014 | **VERIFIED**                   | Temperature boundaries are explicitly tested at -20.0 °C and 60.0 °C and immediately outside those limits.                                                         |
+| 015 | **IMPLEMENTED / NOT VERIFIED** | Fault identifiers and fault propagation exist, but there is no dedicated fault-management layer or independent verification evidence for the complete requirement. |
+| 016 | **PENDING**                    | No simultaneous multi-fault representation is implemented/verified. The current protection API represents a single evaluated protection result.                    |
+| 017 | **IMPLEMENTED / NOT VERIFIED** | Fault-to-normal behaviour exists and is tested, but an explicit general fault-latching policy is not implemented/verified.                                         |
+| 018 | **VERIFIED**                   | Deterministic clearing to `NORMAL` is exercised by state and manager transition tests.                                                                             |
+| 019 | **PENDING**                    | No explicit critical-versus-diagnostic fault classification exists.                                                                                                |
+| 020 | **VERIFIED**                   | `BMS_STATE_INIT` exists and initialization behaviour is unit-tested.                                                                                               |
+| 021 | **IMPLEMENTED / NOT VERIFIED** | `BMS_STATE_NORMAL` exists and is exercised, but no separate explicit monitoring-state model or dedicated verification evidence exists.                             |
+| 022 | **VERIFIED**                   | Protection faults transition the BMS state to `BMS_STATE_FAULT`; exercised by state and manager tests.                                                             |
+| 023 | **PENDING**                    | No `BMS_STATE_RECOVERY` state is implemented.                                                                                                                      |
+| 024 | **VERIFIED**                   | Deterministic state transitions are exercised by the BMS state and manager test suites.                                                                            |
+| 025 | **PENDING**                    | No explicit handling/verification of invalid `bms_state_t` enumeration values.                                                                                     |
+| 026 | **VERIFIED**                   | Limits are represented independently through `bms_limits_t` and the dedicated limits module.                                                                       |
+| 027 | **VERIFIED**                   | `bms_limits_validate()` is implemented and covered by dedicated unit tests.                                                                                        |
+| 028 | **VERIFIED**                   | Invalid limit configuration is rejected during manager initialization and the configuration fault is latched; dedicated manager tests verify this behaviour.       |
+| 029 | **IMPLEMENTED / NOT VERIFIED** | `print_bms_status()` provides status visibility, but there is no dedicated diagnostics layer and no independent diagnostics verification evidence.                 |
+| 030 | **IMPLEMENTED / NOT VERIFIED** | Fault information is observable through existing status output, but no dedicated fault-visibility interface has been verified.                                     |
+| 031 | **PENDING**                    | No dedicated fault-context interface is implemented.                                                                                                               |
+| 032 | **PENDING**                    | No CAN software abstraction is implemented.                                                                                                                        |
+| 033 | **PENDING**                    | No CAN frame representation is implemented.                                                                                                                        |
+| 034 | **PENDING**                    | No CAN frame encoding is implemented.                                                                                                                              |
+| 035 | **PENDING**                    | No CAN frame decoding is implemented.                                                                                                                              |
+| 036 | **PENDING**                    | No CAN-specific error handling is implemented.                                                                                                                     |
+| 037 | **PENDING**                    | CAN hardware/software integration required by the requirement is not currently implemented or explicitly excluded from the requirement baseline.                   |
+| 038 | **PENDING**                    | No I2C measurement abstraction is implemented within the BMS foundation.                                                                                           |
+| 039 | **PENDING**                    | No I2C error-propagation mechanism is implemented.                                                                                                                 |
+| 040 | **PENDING**                    | No measurement communication-failure handling is implemented.                                                                                                      |
+| 041 | **VERIFIED**                   | BMS manager/task integration exists in the firmware while the core BMS modules remain independently testable.                                                      |
+| 042 | **IMPLEMENTED / NOT VERIFIED** | A periodic BMS task exists, but dedicated timing/periodicity verification evidence is not available.                                                               |
+| 043 | **VERIFIED**                   | Core BMS functionality is tested independently of the FreeRTOS scheduler through host-based unit tests.                                                            |
+| 044 | **VERIFIED**                   | Null and invalid input handling is explicitly exercised by the BMS unit suites.                                                                                    |
+| 045 | **VERIFIED**                   | Protection boundary behaviour is deterministic and covered by dedicated boundary tests.                                                                            |
+| 046 | **VERIFIED**                   | NaN, positive infinity and negative infinity measurement values are rejected by validation using finite-value checking; dedicated unit tests provide evidence.     |
+| 047 | **VERIFIED**                   | Automated BMS unit tests exist and are executable through `tests/run_bms_unit_tests.sh`.                                                                           |
+| 048 | **VERIFIED**                   | Boundary-oriented tests cover voltage, current and temperature protection limits.                                                                                  |
+| 049 | **PENDING**                    | No dedicated simultaneous multi-fault combination test suite exists.                                                                                               |
+| 050 | **VERIFIED**                   | Manager tests exercise the measurement → protection → state path end-to-end at the software-module level.                                                          |
+| 051 | **VERIFIED**                   | 17/17 project regression tests pass via `make test` (`pytest -q`).                                                                                                 |
+| 052 | **VERIFIED**                   | Host-based unit tests provide software-level verification of the BMS core without requiring target hardware.                                                       |
+| 053 | **IMPLEMENTED / NOT VERIFIED** | This report provides manual requirement-to-evidence traceability, but traceability is not automatically enforced by the test infrastructure.                       |
+| 054 | **PENDING**                    | Current BMS unit-test cases do not systematically embed the corresponding requirement IDs.                                                                         |
+| 055 | **VERIFIED**                   | Unimplemented functionality is explicitly identified as `PENDING` rather than being represented as verified functionality.                                         |
+| 056 | **VERIFIED**                   | The BMS foundation is implemented as modular C components with defined headers and source modules.                                                                 |
+| 057 | **VERIFIED**                   | Measurement, limits, protection, state and manager responsibilities are separated across modules.                                                                  |
+| 058 | **IMPLEMENTED / NOT VERIFIED** | No static-analysis execution result is recorded as part of this baseline evidence.                                                                                 |
+| 059 | **VERIFIED**                   | Defensive null/invalid-input checks exist and are exercised by unit tests.                                                                                         |
+| 060 | **VERIFIED**                   | The verification and regression procedures are reproducible through repository scripts/Make targets, including `make test` and the dedicated BMS unit runner.      |
+| 061 | **VERIFIED**                   | The tested BMS core behaviour is deterministic for identical inputs.                                                                                               |
+| 062 | **VERIFIED**                   | Core BMS modules can be built and tested independently of the target scheduler through host-based unit tests.                                                      |
+| 063 | **VERIFIED**                   | Clear interfaces exist between measurement, limits, protection, state and manager modules.                                                                         |
+| 064 | **VERIFIED**                   | The BMS core does not directly access ARM hardware registers.                                                                                                      |
 
 ---
 
-## 8. Sign‑off Statement
+## 8. Verification Summary
+
+The audited requirement status remains:
+
+| Status                         |  Count |
+| ------------------------------ | -----: |
+| **VERIFIED**                   | **37** |
+| **IMPLEMENTED / NOT VERIFIED** |  **8** |
+| **PENDING**                    | **19** |
+| **OUT-OF-SCOPE**               |  **0** |
+| **TOTAL**                      | **64** |
+
+Therefore:
+
+```text
+37 / 64 requirements VERIFIED
+```
+
+or:
+
+```text
+57.8% of the defined requirements verified
+```
+
+The remaining requirements are not treated as verified merely because related
+architectural concepts or partial implementations exist.
+
+---
+
+## 9. Verification Evidence
+
+The current baseline contains the following primary evidence.
+
+### 9.1 Firmware build
+
+Command:
+
+```bash
+make test
+```
+
+Firmware image:
+
+```text
+text    data    bss     dec     hex
+34908      84   10980   45972   b394
+```
+
+Result:
+
+```text
+PASS
+```
+
+### 9.2 Full project regression
+
+Command:
+
+```bash
+make test
+```
+
+Result:
+
+```text
+17 passed in 34.98s
+```
+
+Evidence file:
+
+```text
+docs/verification/full_pytest_regression_2026-08-28.txt
+```
+
+### 9.3 BMS unit regression
+
+Command:
+
+```bash
+./tests/run_bms_unit_tests.sh
+```
+
+Result:
+
+```text
+5/5 PASS
+```
+
+Evidence file:
+
+```text
+docs/verification/bms_unit_regression_2026-08-28.txt
+```
+
+### 9.4 BMS test targets
+
+The dedicated regression executes:
+
+```text
+test_bms_measurements
+test_bms_limits
+test_bms_protection
+test_bms_state
+test_bms_manager
+```
+
+All five targets pass at the baseline.
+
+---
+
+## 10. Scope of Verification
+
+The verified software scope includes:
+
+* BMS measurement representation and validation
+* measurement-status handling
+* finite-value validation
+* voltage protection evaluation
+* current protection evaluation
+* temperature protection evaluation
+* protection boundary behaviour
+* BMS state transitions
+* invalid configuration detection
+* invalid configuration latching
+* BMS manager orchestration
+* modular BMS core interfaces
+* host-based unit testing
+* project-level regression integration
+
+The following are **not established by this verification baseline**:
+
+* physical battery-pack validation
+* cell-level measurement hardware validation
+* cell balancing
+* contactor control
+* charger control
+* CAN hardware integration
+* I2C hardware integration
+* hardware-in-the-loop validation
+* production battery-pack validation
+* electrical safety validation
+* functional-safety certification
+* production BMS qualification
+
+Passing software unit tests does not constitute validation of a physical
+battery system.
+
+---
+
+## 11. Sign-off Statement
 
 The BMS v1.0 baseline is considered:
 
 **VERIFIED SOFTWARE FOUNDATION — NOT A PRODUCTION BATTERY MANAGEMENT SYSTEM**
 
-The verified scope is limited to the implemented software‑domain functionality as listed above.
+The `35/64` verification result applies specifically to the implemented
+software-domain requirements and objective evidence available at Git baseline
+`724a7ea`.
 
-Explicit limitations: see Section 9 of the full report (simplified version).
+The result does not claim verification of requirements for which the required
+implementation or verification evidence is absent.
 
----
-
-## 9. Release Evidence
-
-- **Build:** PASS
-- **Regression:** 17/17 PASS
-- **Firmware size:** 45384 bytes
-- **Git baseline:** `c33562c`
-- **Baseline repository state:** CLEAN
+In particular, no claim is made that this software foundation constitutes a
+complete or production-ready battery management system.
 
 ---
 
-## 10. Recommended Next Steps
+## 12. Recommended Next Steps
 
-1. Implement missing acquisition interface (001–003)
-2. Implement simultaneous fault representation (016)
-3. Add requirement IDs to tests (054)
-4. Run static analysis (058)
+The next verification/development activities should be driven by the
+remaining requirement gaps rather than by adding features without traceability.
+
+Recommended order:
+
+1. **Requirement 001–003:** define and implement the measurement acquisition
+   boundary.
+2. **Requirement 016:** define the required simultaneous multi-fault model and
+   corresponding verification strategy.
+3. **Requirement 054:** associate requirement IDs directly with test cases to
+   improve automated traceability.
+4. **Requirement 058:** introduce a documented static-analysis baseline.
+5. Re-run the complete BMS and project regressions after each change.
+6. Update this report only when new implementation and objective evidence
+   justify a status change.
+
+No requirement should be promoted from `PENDING` or
+`IMPLEMENTED / NOT VERIFIED` to `VERIFIED` without corresponding implementation
+and objective verification evidence.
+
+---
+
+## 13. Baseline Record
+
+```text
+Project:
+ARM-MSV-Framework-RTOS
+
+BMS baseline:
+v1.0 Software Foundation
+
+Git branch:
+main
+
+Git commit:
+724a7ea4317d36842e7fe2a62d1fdc13f422a4bd
+
+Commit:
+test: add BMS unit regression evidence
+
+Verification date:
+2026-08-28
+
+Firmware build:
+PASS
+
+Firmware size:
+45972 bytes
+
+BMS unit regression:
+5/5 PASS
+
+Full project regression:
+17/17 PASS
+
+Requirements:
+64 total
+
+Verified:
+37
+
+Implemented / Not Verified:
+8
+
+Pending:
+19
+
+Out-of-Scope:
+0
+
+Verification classification:
+VERIFIED SOFTWARE FOUNDATION
+NOT A PRODUCTION BATTERY MANAGEMENT SYSTEM
