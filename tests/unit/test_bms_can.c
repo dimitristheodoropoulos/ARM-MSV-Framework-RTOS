@@ -368,6 +368,21 @@ static void test_can_frame_invalid_id(void)
     assert(bms_can_frame_is_valid(&frame) == 0);
 }
 
+static void test_can_frame_invalid_state_and_fault(void)
+{
+    bms_can_frame_t frame;
+    memset(&frame, 0, sizeof(frame));
+
+    frame.id = 0x100;
+    frame.dlc = 8;
+
+    /* Invalid enum values on the CAN wire */
+    frame.data[6] = 0xFF;
+    frame.data[7] = 0xFF;
+
+    assert(bms_can_frame_is_valid(&frame) == 0);
+}
+
 int main(void)
 {
     printf("[BMS CAN UNIT] Running tests...\n");
@@ -422,6 +437,9 @@ int main(void)
 
     test_can_frame_invalid_id();
     printf("[PASS] invalid_id\n");
+
+    test_can_frame_invalid_state_and_fault();
+    printf("[PASS] invalid_state_and_fault\n");
 
     printf("[BMS CAN UNIT] All tests passed.\n");
     return 0;

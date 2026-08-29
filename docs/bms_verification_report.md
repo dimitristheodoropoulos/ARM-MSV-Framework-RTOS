@@ -363,12 +363,12 @@ the current baseline.
 | 029 | **IMPLEMENTED / NOT VERIFIED** | `print_bms_status()` provides status visibility, but there is no dedicated diagnostics layer and no independent diagnostics verification evidence.                 |
 | 030 | **IMPLEMENTED / NOT VERIFIED** | Fault information is observable through existing status output, but no dedicated fault-visibility interface has been verified.                                     |
 | 031 | **PENDING**                    | No dedicated fault-context interface is implemented.                                                                                                               |
-| 032 | **PENDING**                    | No CAN software abstraction is implemented.                                                                                                                        |
-| 033 | **PENDING**                    | No CAN frame representation is implemented.                                                                                                                        |
-| 034 | **PENDING**                    | No CAN frame encoding is implemented.                                                                                                                              |
-| 035 | **PENDING**                    | No CAN frame decoding is implemented.                                                                                                                              |
-| 036 | **PENDING**                    | No CAN-specific error handling is implemented.                                                                                                                     |
-| 037 | **PENDING**                    | CAN hardware/software integration required by the requirement is not currently implemented or explicitly excluded from the requirement baseline.                   |
+| 032 | **VERIFIED**                   | CAN communication is represented through the transport-independent `bms_can_frame_t` and build/decode APIs; unit-tested independently of physical CAN hardware.     |
+| 033 | **VERIFIED**                   | `bms_can_frame_t` provides CAN identifier, DLC and 8-byte payload representation; exercised by dedicated CAN unit tests.                                          |
+| 034 | **VERIFIED**                   | BMS voltage, current, temperature, state and fault data are encoded into the defined CAN payload; raw-byte unit tests verify the encoding.                        |
+| 035 | **VERIFIED**                   | Supported CAN payloads are decoded back into BMS measurements, state and fault; round-trip unit tests verify the decoding.                                        |
+| 036 | **VERIFIED**                   | Invalid NULL inputs, DLC, CAN ID and semantic state/fault values are deterministically rejected; dedicated CAN unit tests verify malformed-frame handling.          |
+| 037 | **VERIFIED**                   | Software-level CAN representation, encoding, decoding and malformed-frame handling are verified by unit tests; no physical CAN transceiver or bus validation is claimed. |
 | 038 | **VERIFIED**                   | `bms_measurement_device_t` abstraction is implemented; unit tests verify successful measurement acquisition through the abstraction.                              |
 | 039 | **VERIFIED**                   | Communication errors (NACK, timeout, bus, arbitration) are propagated through the abstraction; verified by dedicated unit tests.                                 |
 | 040 | **VERIFIED**                   | Communication failures do not produce valid measurements; measurement status is set to `BMS_MEAS_INVALID`; verified by unit tests.                               |

@@ -43,6 +43,52 @@ static int32_t clamp_int32(int32_t value, int32_t min, int32_t max)
     return value;
 }
 
+/**
+ * @brief Validate a decoded BMS state value.
+ *
+ * Only explicitly defined protocol state values are accepted.
+ * This prevents arbitrary wire bytes from being cast to enum.
+ */
+static int bms_can_state_is_valid(uint8_t state)
+{
+    switch ((bms_state_t)state)
+    {
+        case BMS_STATE_INIT:
+        case BMS_STATE_NORMAL:
+        case BMS_STATE_WARNING:
+        case BMS_STATE_FAULT:
+            return 1;
+
+        default:
+            return 0;
+    }
+}
+
+/**
+ * @brief Validate a decoded BMS fault value.
+ *
+ * Only explicitly defined protocol fault values are accepted.
+ * This prevents arbitrary wire bytes from being cast to enum.
+ */
+static int bms_can_fault_is_valid(uint8_t fault)
+{
+    switch ((bms_fault_t)fault)
+    {
+        case BMS_FAULT_NONE:
+        case BMS_FAULT_INVALID_MEASUREMENT:
+        case BMS_FAULT_INVALID_CONFIGURATION:
+        case BMS_FAULT_OVERVOLTAGE:
+        case BMS_FAULT_UNDERVOLTAGE:
+        case BMS_FAULT_OVERTEMPERATURE:
+        case BMS_FAULT_UNDERTEMPERATURE:
+        case BMS_FAULT_OVERCURRENT:
+            return 1;
+
+        default:
+            return 0;
+    }
+}
+
 int bms_can_set_base_id(uint32_t id)
 {
     /* Validate CAN ID: must not be 0 and must be within valid range */
@@ -117,7 +163,7 @@ int bms_can_decode_frame(
         return -1;
     }
 
-    /* Validate frame */
+    /* Validate frame before decoding - prevents malformed enum values */
     if (!bms_can_frame_is_valid(frame))
     {
         return -1;
@@ -140,7 +186,7 @@ int bms_can_decode_frame(
     measurements->temperature.value = (float)t / SCALE_TEMPERATURE;
     measurements->temperature.status = BMS_MEAS_VALID;
 
-    /* --- Decode state and fault --- */
+    /* --- Decode state and fault (values already validated) --- */
     state->state = (bms_state_t)frame->data[6];
     state->fault = (bms_fault_t)frame->data[7];
 
@@ -156,6 +202,13 @@ int bms_can_frame_is_valid(const bms_can_frame_t *frame)
         return 0;
 
     if (frame->id != bms_can_base_id)
+        return 0;
+
+    /* Validate enum values to prevent malformed or out-of-range data */
+    if (!bms_can_state_is_valid(frame->data[6]))
+        return 0;
+
+    if (!bms_can_fault_is_valid(frame->data[7]))
         return 0;
 
     return 1;
