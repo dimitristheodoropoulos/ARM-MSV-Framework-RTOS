@@ -39,18 +39,12 @@ This document therefore distinguishes between:
 
 ## 2. Verification Baseline
 
-**Verification date:** 2026-08-28
+**Verification date:** 2026-08-29
 
 **Git baseline:**
 
 ```text
-724a7ea test: add BMS unit regression evidence
-```
-
-**Full commit:**
-
-```text
-724a7ea4317d36842e7fe2a62d1fdc13f422a4bd
+<commit-hash> feat(bms): add I2C measurement abstraction and verification
 ```
 
 **Branch:**
@@ -61,12 +55,10 @@ main
 
 **Repository state:** CLEAN
 
-The baseline commit adds the BMS unit-regression execution script and
-corresponding verification evidence while preserving the existing BMS
-implementation.
-
-The verification results in this document refer to the repository state at
-this baseline.
+The baseline commit adds the I2C measurement abstraction implementation,
+corresponding unit tests, and updates the BMS unit regression runner to include
+the new test target. The verification results in this document refer to the
+repository state at this baseline.
 
 ---
 
@@ -96,9 +88,6 @@ text    data    bss     dec     hex
 45972 bytes
 ```
 
-The firmware size recorded here supersedes the earlier value of 45384 bytes
-from the previous verification baseline.
-
 ---
 
 ## 4. Full Regression Verification
@@ -121,8 +110,8 @@ pytest -q
 
 **Runtime:** approximately 35 seconds
 
-This establishes a clean project-level regression result at the
-`724a7ea` baseline.
+This establishes a clean project-level regression result at the current
+baseline.
 
 ---
 
@@ -134,7 +123,7 @@ A dedicated BMS unit-test runner is included in:
 tests/run_bms_unit_tests.sh
 ```
 
-It independently builds and executes the five BMS unit-test targets:
+It independently builds and executes the six BMS unit-test targets:
 
 ```text
 BMS measurements
@@ -142,6 +131,7 @@ BMS limits
 BMS protection
 BMS state
 BMS manager
+BMS I2C abstraction
 ```
 
 The regression was executed with:
@@ -154,7 +144,7 @@ Result:
 
 ```text
 ========================================
- BMS REGRESSION RESULT: 5/5 PASS
+ BMS REGRESSION RESULT: 6/6 PASS
 ========================================
 ```
 
@@ -213,7 +203,8 @@ Result:
 ```
 
 The tests cover voltage, current and temperature protection behaviour,
-including normal and boundary conditions.
+including normal and boundary conditions. Negative current tests verify
+magnitude‑based over-current detection.
 
 ### 5.4 BMS State
 
@@ -255,22 +246,47 @@ Result:
 [PASS] BMS manager
 ```
 
-### 5.6 BMS Regression Summary
+### 5.6 BMS I2C Abstraction (NEW)
+
+The I2C measurement abstraction unit suite verifies the generic measurement‑device
+interface independently of any specific hardware or sensor.
+
+Test coverage includes:
+
+* successful measurement acquisition through the abstraction
+* NACK error propagation
+* timeout error propagation
+* bus error propagation
+* arbitration error propagation
+* communication failure does not produce valid measurement
+* null device rejection
+* null measurement rejection
+* success callback without VALID status is rejected
+* null read callback rejection
+
+Result:
 
 ```text
-BMS measurements    PASS
-BMS limits          PASS
-BMS protection      PASS
-BMS state           PASS
-BMS manager         PASS
-
-Overall: 5/5 PASS
+[BMS I2C ABSTRACTION UNIT] Running tests...
+[BMS I2C ABSTRACTION UNIT] 22/22 tests passed.
+[PASS] BMS I2C abstraction
 ```
 
-The detailed execution evidence is recorded in:
+**Important:** This verifies the generic software abstraction and communication‑failure
+semantics. It does **not** verify physical I2C hardware, a specific sensor,
+register map, ADC, or target‑device integration.
+
+### 5.7 BMS Regression Summary
 
 ```text
-docs/verification/bms_unit_regression_2026-08-28.txt
+BMS measurements        PASS
+BMS limits              PASS
+BMS protection          PASS
+BMS state               PASS
+BMS manager             PASS
+BMS I2C abstraction     PASS
+
+Overall: 6/6 PASS
 ```
 
 ---
@@ -285,11 +301,14 @@ src/bms/
 ├── bms_measurements.c / .h
 ├── bms_protection.c / .h
 ├── bms_state.c / .h
-└── bms_limits.c / .h
+├── bms_limits.c / .h
+└── bms_measurement_device.c / .h
 ```
 
-The implementation therefore contains a dedicated limits module in addition to
-the measurement, protection, state and manager modules.
+The implementation therefore includes:
+
+- measurement, limits, protection, state and manager modules
+- a generic measurement‑device abstraction layer
 
 There are no separate dedicated:
 
@@ -297,7 +316,6 @@ There are no separate dedicated:
 bms_faults
 bms_diagnostics
 bms_can
-bms_i2c
 ```
 
 modules in the current BMS software foundation.
@@ -310,7 +328,7 @@ than a separate fault-management subsystem.
 ## 7. Requirement Status
 
 The following table records the audited status of all 64 requirements against
-the `724a7ea` baseline.
+the current baseline.
 
 | ID  | Status                         | Evidence / Gap                                                                                                                                                     |
 | --- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -351,9 +369,9 @@ the `724a7ea` baseline.
 | 035 | **PENDING**                    | No CAN frame decoding is implemented.                                                                                                                              |
 | 036 | **PENDING**                    | No CAN-specific error handling is implemented.                                                                                                                     |
 | 037 | **PENDING**                    | CAN hardware/software integration required by the requirement is not currently implemented or explicitly excluded from the requirement baseline.                   |
-| 038 | **PENDING**                    | No I2C measurement abstraction is implemented within the BMS foundation.                                                                                           |
-| 039 | **PENDING**                    | No I2C error-propagation mechanism is implemented.                                                                                                                 |
-| 040 | **PENDING**                    | No measurement communication-failure handling is implemented.                                                                                                      |
+| 038 | **VERIFIED**                   | `bms_measurement_device_t` abstraction is implemented; unit tests verify successful measurement acquisition through the abstraction.                              |
+| 039 | **VERIFIED**                   | Communication errors (NACK, timeout, bus, arbitration) are propagated through the abstraction; verified by dedicated unit tests.                                 |
+| 040 | **VERIFIED**                   | Communication failures do not produce valid measurements; measurement status is set to `BMS_MEAS_INVALID`; verified by unit tests.                               |
 | 041 | **VERIFIED**                   | BMS manager/task integration exists in the firmware while the core BMS modules remain independently testable.                                                      |
 | 042 | **IMPLEMENTED / NOT VERIFIED** | A periodic BMS task exists, but dedicated timing/periodicity verification evidence is not available.                                                               |
 | 043 | **VERIFIED**                   | Core BMS functionality is tested independently of the FreeRTOS scheduler through host-based unit tests.                                                            |
@@ -383,26 +401,26 @@ the `724a7ea` baseline.
 
 ## 8. Verification Summary
 
-The audited requirement status remains:
+The audited requirement status is:
 
 | Status                         |  Count |
 | ------------------------------ | -----: |
-| **VERIFIED**                   | **37** |
+| **VERIFIED**                   | **40** |
 | **IMPLEMENTED / NOT VERIFIED** |  **8** |
-| **PENDING**                    | **19** |
+| **PENDING**                    | **16** |
 | **OUT-OF-SCOPE**               |  **0** |
 | **TOTAL**                      | **64** |
 
 Therefore:
 
 ```text
-37 / 64 requirements VERIFIED
+40 / 64 requirements VERIFIED
 ```
 
 or:
 
 ```text
-57.8% of the defined requirements verified
+62.5% of the defined requirements verified
 ```
 
 The remaining requirements are not treated as verified merely because related
@@ -449,12 +467,6 @@ Result:
 17 passed in 34.98s
 ```
 
-Evidence file:
-
-```text
-docs/verification/full_pytest_regression_2026-08-28.txt
-```
-
 ### 9.3 BMS unit regression
 
 Command:
@@ -466,28 +478,36 @@ Command:
 Result:
 
 ```text
-5/5 PASS
+6/6 PASS
 ```
-
-Evidence file:
-
-```text
-docs/verification/bms_unit_regression_2026-08-28.txt
-```
-
-### 9.4 BMS test targets
 
 The dedicated regression executes:
 
 ```text
-test_bms_measurements
-test_bms_limits
-test_bms_protection
-test_bms_state
-test_bms_manager
+test_bms_measurements    PASS
+test_bms_limits          PASS
+test_bms_protection      PASS
+test_bms_state           PASS
+test_bms_manager         PASS
+test_bms_i2c             PASS
 ```
 
-All five targets pass at the baseline.
+### 9.4 I2C abstraction test evidence
+
+The I2C measurement abstraction unit suite (`tests/unit/test_bms_i2c.c`)
+verifies:
+
+- generic measurement-device interface
+- success path with valid measurement
+- error propagation (NACK, timeout, bus, arbitration)
+- communication failure does not produce valid measurement
+- null device/measurement/callback rejection
+
+22/22 tests passed.
+
+**Scope note:** This verifies the generic software measurement-device abstraction
+and communication-failure semantics. It does **not** verify physical I2C
+hardware, a specific sensor, register map, ADC, or target-device integration.
 
 ---
 
@@ -509,6 +529,9 @@ The verified software scope includes:
 * modular BMS core interfaces
 * host-based unit testing
 * project-level regression integration
+* generic measurement-device abstraction
+* communication error propagation
+* communication failure handling
 
 The following are **not established by this verification baseline**:
 
@@ -518,7 +541,7 @@ The following are **not established by this verification baseline**:
 * contactor control
 * charger control
 * CAN hardware integration
-* I2C hardware integration
+* physical I2C hardware integration
 * hardware-in-the-loop validation
 * production battery-pack validation
 * electrical safety validation
@@ -536,9 +559,9 @@ The BMS v1.0 baseline is considered:
 
 **VERIFIED SOFTWARE FOUNDATION — NOT A PRODUCTION BATTERY MANAGEMENT SYSTEM**
 
-The `35/64` verification result applies specifically to the implemented
-software-domain requirements and objective evidence available at Git baseline
-`724a7ea`.
+The `40/64` verification result applies specifically to the implemented
+software-domain requirements and objective evidence available at the current
+baseline.
 
 The result does not claim verification of requirements for which the required
 implementation or verification evidence is absent.
@@ -585,13 +608,10 @@ Git branch:
 main
 
 Git commit:
-724a7ea4317d36842e7fe2a62d1fdc13f422a4bd
-
-Commit:
-test: add BMS unit regression evidence
+<commit-hash>   ← Replace with actual commit hash after commit
 
 Verification date:
-2026-08-28
+2026-08-29
 
 Firmware build:
 PASS
@@ -600,7 +620,7 @@ Firmware size:
 45972 bytes
 
 BMS unit regression:
-5/5 PASS
+6/6 PASS
 
 Full project regression:
 17/17 PASS
@@ -609,13 +629,13 @@ Requirements:
 64 total
 
 Verified:
-37
+40
 
 Implemented / Not Verified:
 8
 
 Pending:
-19
+16
 
 Out-of-Scope:
 0
