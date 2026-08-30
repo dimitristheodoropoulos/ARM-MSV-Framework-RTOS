@@ -442,7 +442,7 @@ the current baseline.
 | 055 | **VERIFIED**                   | Unimplemented functionality is explicitly identified as `PENDING` rather than being represented as verified functionality.                                         |
 | 056 | **VERIFIED**                   | The BMS foundation is implemented as modular C components with defined headers and source modules.                                                                 |
 | 057 | **VERIFIED**                   | Measurement, limits, protection, state and manager responsibilities are separated across modules.                                                                  |
-| 058 | **IMPLEMENTED / NOT VERIFIED** | No static-analysis execution result is recorded as part of this baseline evidence.                                                                                 |
+| 058 | **VERIFIED**                   | GCC static analysis executed on all 7 BMS production modules using `arm-none-eabi-gcc` with `-std=c11 -Wall -Wextra -Werror -fanalyzer`; all 7 modules passed with zero diagnostics. |
 | 059 | **VERIFIED**                   | Defensive null/invalid-input checks exist and are exercised by unit tests.                                                                                         |
 | 060 | **VERIFIED**                   | The verification and regression procedures are reproducible through repository scripts/Make targets, including `make test` and the dedicated BMS unit runner.      |
 | 061 | **VERIFIED**                   | The tested BMS core behaviour is deterministic for identical inputs.                                                                                               |
@@ -458,8 +458,8 @@ The audited requirement status is:
 
 | Status                         | Count |
 | ------------------------------ | ----: |
-| **VERIFIED**                   | **47** |
-| **IMPLEMENTED / NOT VERIFIED** | **7** |
+| **VERIFIED**                   | **48** |
+| **IMPLEMENTED / NOT VERIFIED** | **6** |
 | **PENDING**                    | **10** |
 | **OUT-OF-SCOPE**               | **0** |
 | **TOTAL**                      | **64** |
@@ -467,7 +467,7 @@ The audited requirement status is:
 Therefore:
 
 ```text
-47 / 64 requirements VERIFIED
+48 / 64 requirements VERIFIED
 ```
 
 or:
