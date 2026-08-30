@@ -44,7 +44,7 @@ This document therefore distinguishes between:
 **Git baseline:**
 
 ```text
-5e3b03f7a887fe150ac39cb6b8e44c89afc64ccb
+cc4a9d1
 ```
 
 **Branch:**
@@ -426,7 +426,7 @@ the current baseline.
 | 039 | **VERIFIED**                   | NACK, timeout, bus and arbitration errors are propagated through the measurement-device abstraction and verified independently by host unit tests.                |
 | 040 | **VERIFIED**                   | Failed measurement transactions force `BMS_MEAS_INVALID` and cannot be accepted as valid measurements; verified for all implemented communication failure classes. |
 | 041 | **VERIFIED**                   | BMS manager/task integration exists in the firmware while the core BMS modules remain independently testable.                                                      |
-| 042 | **IMPLEMENTED / NOT VERIFIED** | A periodic BMS task exists, but dedicated timing/periodicity verification evidence is not available.                                                               |
+| 042 | **VERIFIED**                   | QEMU runtime test `tests/test_bms_timing.py` observed four BMS updates with measured intervals of 5.000 s, 5.000 s and 4.983 s, within the accepted 4–6 s verification window. |
 | 043 | **VERIFIED**                   | Core BMS functionality is tested independently of the FreeRTOS scheduler through host-based unit tests.                                                            |
 | 044 | **VERIFIED**                   | Null and invalid input handling is explicitly exercised by the BMS unit suites.                                                                                    |
 | 045 | **VERIFIED**                   | Protection boundary behaviour is deterministic and covered by dedicated boundary tests.                                                                            |
@@ -435,7 +435,7 @@ the current baseline.
 | 048 | **VERIFIED**                   | Boundary-oriented tests cover voltage, current and temperature protection limits.                                                                                  |
 | 049 | **PENDING**                    | No dedicated simultaneous multi-fault combination test suite exists.                                                                                               |
 | 050 | **VERIFIED**                   | Manager tests exercise the measurement → protection → state path end-to-end at the software-module level.                                                          |
-| 051 | **VERIFIED**                   | 17/17 project regression tests pass via `make test` (`pytest -q`).                                                                                                 |
+| 051 | **VERIFIED**                   | 18/18 project regression tests pass via `make test` (`pytest -q`).                                                                                                 |
 | 052 | **VERIFIED**                   | Host-based unit tests provide software-level verification of the BMS core without requiring target hardware.                                                       |
 | 053 | **IMPLEMENTED / NOT VERIFIED** | This report provides manual requirement-to-evidence traceability, but traceability is not automatically enforced by the test infrastructure.                       |
 | 054 | **PENDING**                    | Current BMS unit-test cases do not systematically embed the corresponding requirement IDs.                                                                         |
@@ -458,8 +458,8 @@ The audited requirement status is:
 
 | Status                         | Count |
 | ------------------------------ | ----: |
-| **VERIFIED**                   | **46** |
-| **IMPLEMENTED / NOT VERIFIED** | **8** |
+| **VERIFIED**                   | **47** |
+| **IMPLEMENTED / NOT VERIFIED** | **7** |
 | **PENDING**                    | **10** |
 | **OUT-OF-SCOPE**               | **0** |
 | **TOTAL**                      | **64** |
@@ -467,13 +467,13 @@ The audited requirement status is:
 Therefore:
 
 ```text
-46 / 64 requirements VERIFIED
+47 / 64 requirements VERIFIED
 ```
 
 or:
 
 ```text
-71.875% of the defined requirements verified
+73.4375% of the defined requirements verified
 ```
 
 The remaining requirements are not treated as verified merely because related
@@ -697,7 +697,7 @@ BMS unit regression:
 7/7 PASS
 
 Full project regression:
-17/17 PASS
+18/18 PASS
 
 Requirements:
 64 total
@@ -758,8 +758,8 @@ Expected output:
 ```text
 Requirement rows: 64
 
-VERIFIED: 46
-IMPLEMENTED / NOT VERIFIED: 8
+VERIFIED: 47
+IMPLEMENTED / NOT VERIFIED: 7
 PENDING: 10
 
 IDs: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
