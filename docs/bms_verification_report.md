@@ -473,7 +473,7 @@ Therefore:
 or:
 
 ```text
-73.4375% of the defined requirements verified
+75.0% of the defined requirements verified
 ```
 
 The remaining requirements are not treated as verified merely because related
@@ -633,7 +633,7 @@ The BMS v1.0 baseline is considered:
 
 **VERIFIED SOFTWARE FOUNDATION — NOT A PRODUCTION BATTERY MANAGEMENT SYSTEM**
 
-The `46/64` verification result applies specifically to the implemented
+The `48/64` verification result applies specifically to the implemented
 software-domain requirements and objective evidence available at the current
 baseline.
 
@@ -703,10 +703,10 @@ Requirements:
 64 total
 
 Verified:
-46
+48
 
 Implemented / Not Verified:
-8
+6
 
 Pending:
 10
@@ -758,8 +758,8 @@ Expected output:
 ```text
 Requirement rows: 64
 
-VERIFIED: 47
-IMPLEMENTED / NOT VERIFIED: 7
+VERIFIED: 48
+IMPLEMENTED / NOT VERIFIED: 6
 PENDING: 10
 
 IDs: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
