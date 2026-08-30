@@ -167,6 +167,58 @@ static void test_update_transition_fault_to_normal(void)
     assert(mgr.status.fault == BMS_FAULT_NONE);
 }
 
+
+/* BMS-REQ-050 — end-to-end BMS module integration */
+static void test_integration_measurement_to_state(void)
+{
+    bms_manager_t mgr;
+    bms_limits_t limits = default_limits();
+
+    bms_manager_init(&mgr, &limits);
+
+    /* NORMAL path: measurements → protection → state */
+    bms_measurements_t m = make_valid_measurements(48.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+
+    assert(mgr.measurements.voltage.value == 48.0f);
+    assert(mgr.measurements.current.value == 10.0f);
+    assert(mgr.measurements.temperature.value == 25.0f);
+    assert(mgr.measurements.voltage.status == BMS_MEAS_VALID);
+    assert(mgr.measurements.current.status == BMS_MEAS_VALID);
+    assert(mgr.measurements.temperature.status == BMS_MEAS_VALID);
+
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+    assert(mgr.status.state == BMS_STATE_NORMAL);
+    assert(mgr.status.fault == BMS_FAULT_NONE);
+
+    /* Fault propagation: protection result → state/fault */
+    m.voltage.value = 55.0f;
+    bms_manager_update(&mgr, &m);
+
+    assert(mgr.protection == BMS_PROTECTION_OVER_VOLTAGE);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_OVERVOLTAGE);
+
+    /* Invalid measurement propagation */
+    m = make_valid_measurements(48.0f, 10.0f, 25.0f);
+    m.temperature.status = BMS_MEAS_INVALID;
+    bms_manager_update(&mgr, &m);
+
+    assert(mgr.protection == BMS_PROTECTION_INVALID_MEASUREMENT);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_INVALID_MEASUREMENT);
+
+    /* Recovery: valid measurements restore NORMAL state */
+    m = make_valid_measurements(48.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+    assert(mgr.status.state == BMS_STATE_NORMAL);
+    assert(mgr.status.fault == BMS_FAULT_NONE);
+
+    printf("[PASS] BMS-REQ-050 end-to-end module integration\n");
+}
+
 static void test_null_arguments(void)
 {
     bms_manager_t mgr;
@@ -197,6 +249,8 @@ int main(void)
 
     test_update_transition_fault_to_normal();
     printf("[PASS] transition fault → normal\n");
+
+    test_integration_measurement_to_state();
 
     test_null_arguments();
     printf("[PASS] null_arguments\n");

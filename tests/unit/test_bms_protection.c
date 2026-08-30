@@ -127,6 +127,70 @@ int main(void)
     m.temperature.value = 60.0001f;
     assert(bms_protection_evaluate(&m, &limits) == BMS_PROTECTION_OVER_TEMPERATURE);
 
+
+    /* ------------------------------------------------------------
+     * BMS-REQ-049 — simultaneous multi-fault verification
+     *
+     * The protection interface reports one deterministic protection
+     * status. When multiple physical fault conditions are active
+     * simultaneously, the implementation must select the first
+     * applicable condition according to its defined evaluation order:
+     *
+     *   over-voltage
+     *   under-voltage
+     *   over-current
+     *   over-temperature
+     *   under-temperature
+     * ------------------------------------------------------------ */
+
+    /* Over-voltage + over-current -> over-voltage has priority */
+    m = valid_measurements();
+    m.voltage.value = 55.0f;
+    m.current.value = 21.0f;
+    assert(bms_protection_evaluate(&m, &limits) ==
+           BMS_PROTECTION_OVER_VOLTAGE);
+
+    /* Over-voltage + over-temperature -> over-voltage has priority */
+    m = valid_measurements();
+    m.voltage.value = 55.0f;
+    m.temperature.value = 61.0f;
+    assert(bms_protection_evaluate(&m, &limits) ==
+           BMS_PROTECTION_OVER_VOLTAGE);
+
+    /* Under-voltage + over-current -> under-voltage has priority */
+    m = valid_measurements();
+    m.voltage.value = 39.0f;
+    m.current.value = 21.0f;
+    assert(bms_protection_evaluate(&m, &limits) ==
+           BMS_PROTECTION_UNDER_VOLTAGE);
+
+    /* Under-voltage + under-temperature -> under-voltage has priority */
+    m = valid_measurements();
+    m.voltage.value = 39.0f;
+    m.temperature.value = -21.0f;
+    assert(bms_protection_evaluate(&m, &limits) ==
+           BMS_PROTECTION_UNDER_VOLTAGE);
+
+    /* Over-current + over-temperature -> over-current has priority */
+    m = valid_measurements();
+    m.current.value = 21.0f;
+    m.temperature.value = 61.0f;
+    assert(bms_protection_evaluate(&m, &limits) ==
+           BMS_PROTECTION_OVER_CURRENT);
+
+    /* Over-current + under-temperature -> over-current has priority */
+    m = valid_measurements();
+    m.current.value = 21.0f;
+    m.temperature.value = -21.0f;
+    assert(bms_protection_evaluate(&m, &limits) ==
+           BMS_PROTECTION_OVER_CURRENT);
+
+    /* Over-temperature + under-temperature cannot coexist for one
+     * scalar temperature measurement; verify the valid independent
+     * multi-fault combinations instead of creating an impossible case. */
+
+    printf("[PASS] BMS-REQ-049 simultaneous multi-fault combinations\n");
+
     printf("[BMS PROTECTION UNIT] All extended tests passed.\n");
     return 0;
 }
