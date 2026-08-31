@@ -474,8 +474,12 @@ void vTaskCLI(void *pvParameters)
     {
         health_monitor_heartbeat(HEALTH_TASK_CLI);
 
+        cli_is_typing = 1;
+
         uart_puts_safe("rtos_msv> ");
         shell_readline(cmd_buf, sizeof(cmd_buf));
+
+        cli_is_typing = 0;
 
         if (cmd_buf[0] != '\0') {
             shell_process(cmd_buf);

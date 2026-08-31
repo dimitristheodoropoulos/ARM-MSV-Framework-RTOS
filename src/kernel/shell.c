@@ -48,19 +48,15 @@ void shell_readline(char *buf, int maxlen) {
     while (i < maxlen - 1) {
         char c = uart_getc();
         if (c == 0) {
-            if (i == 0) cli_is_typing = 0;
-
             /* CLI task is alive while waiting for UART input. */
             health_monitor_heartbeat(HEALTH_TASK_CLI);
 
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
-        cli_is_typing = 1;
         if (c == '\r' || c == '\n') {
             buf[i] = '\0';
             uart_puts_safe("\r\n");
-            cli_is_typing = 0;
             return;
         }
         if (c == 8 || c == 127) {
