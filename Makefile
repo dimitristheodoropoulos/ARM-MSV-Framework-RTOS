@@ -85,26 +85,41 @@ clean:
 
 
 BMS_TEST_DIR = build/tests
-BMS_HOST_CFLAGS = -std=c11 -Wall -Wextra -Werror -Isrc/bms
+BMS_HOST_CFLAGS = -std=c11 -Wall -Wextra -Werror -Isrc/bms -Isrc
 
 bms-test:
 	@mkdir -p $(BMS_TEST_DIR)
 	@echo "[BMS TEST] Building host unit tests..."
+
 	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_measurements.c \
 		src/bms/bms_measurements.c -lm \
 		-o $(BMS_TEST_DIR)/test_bms_measurements
+
+	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_measurement_device.c \
+		src/bms/bms_measurement_device.c src/bms/bms_measurements.c -lm \
+		-o $(BMS_TEST_DIR)/test_bms_measurement_device
+
+	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_i2c_measurement_device.c \
+		src/bms/bms_i2c_measurement_device.c src/bms/bms_measurements.c -lm \
+		-o $(BMS_TEST_DIR)/test_bms_i2c_measurement_device
+
 	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_protection.c \
 		src/bms/bms_protection.c src/bms/bms_measurements.c -lm \
 		-o $(BMS_TEST_DIR)/test_bms_protection
+
 	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_state.c \
 		src/bms/bms_state.c -lm \
 		-o $(BMS_TEST_DIR)/test_bms_state
+
 	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_manager.c \
 		src/bms/bms_manager.c src/bms/bms_protection.c \
 		src/bms/bms_measurements.c src/bms/bms_state.c -lm \
 		-o $(BMS_TEST_DIR)/test_bms_manager
+
 	@echo "[BMS TEST] Running host unit tests..."
 	@$(BMS_TEST_DIR)/test_bms_measurements
+	@$(BMS_TEST_DIR)/test_bms_measurement_device
+	@$(BMS_TEST_DIR)/test_bms_i2c_measurement_device
 	@$(BMS_TEST_DIR)/test_bms_protection
 	@$(BMS_TEST_DIR)/test_bms_state
 	@$(BMS_TEST_DIR)/test_bms_manager
