@@ -39,24 +39,25 @@ This document therefore distinguishes between:
 
 ## 2. Verification Baseline
 
-**Verification date:** 2026-08-30
+**Verification date:** 2026-08-31
 
 **Git baseline:**
 
 ```text
-cc4a9d1
+48a311d
 ```
 
 **Branch:**
 
 ```text
-feature/bms-i2c-measurement-abstraction
+main
 ```
 
-The baseline commit adds the I2C measurement abstraction implementation,
-corresponding unit tests, and updates the BMS unit regression runner to include
-the new test target. The verification results in this document refer to the
-repository state at this baseline.
+The baseline commit integrates the BMS I2C measurement abstraction,
+BMS CAN communication abstraction, associated unit tests, timing verification,
+static-analysis verification, and corresponding documentation updates into
+the main branch. The verification results in this document refer to the
+repository state at this integrated main-branch baseline.
 
 ---
 
@@ -100,13 +101,13 @@ Result:
 
 ```text
 pytest -q
-.................                                                        [100%]
-17 passed in 34.98s
+..................                                                       [100%]
+18 passed in 55.04s
 ```
 
-**Result:** 17 passed, 0 failed
+**Result:** 18 passed, 0 failed
 
-**Runtime:** approximately 35 seconds
+**Runtime:** approximately 55 seconds
 
 This establishes a clean project-level regression result at the current
 baseline.
@@ -517,7 +518,7 @@ make test
 Result:
 
 ```text
-17 passed in 34.98s
+18 passed in 55.04s
 ```
 
 ### 9.3 BMS unit regression
@@ -679,13 +680,13 @@ BMS baseline:
 v1.0 Software Foundation
 
 Git branch:
-feature/bms-i2c-measurement-abstraction
+main
 
 Git commit:
-5e3b03f7a887fe150ac39cb6b8e44c89afc64ccb
+48a311dfefa51ea6bc0f0447395cccee23b417c1
 
 Verification date:
-2026-08-30
+2026-08-31
 
 Firmware build:
 PASS

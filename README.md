@@ -625,12 +625,12 @@ docs/bms_verification_report.md
 | Metric                     |       Result |
 | -------------------------- | -----------: |
 | Requirements assessed      |           64 |
-| VERIFIED                   |           37 |
-| IMPLEMENTED / NOT VERIFIED |            8 |
-| PENDING                    |           19 |
+| VERIFIED                   |           48 |
+| IMPLEMENTED / NOT VERIFIED |            6 |
+| PENDING                    |           10 |
 | OUT-OF-SCOPE               |            0 |
-| BMS unit regression        |     5/5 PASS |
-| Full project regression    |    17/17 PASS |
+| BMS unit regression        |     7/7 PASS |
+| Full project regression    |    18/18 PASS |
 | Firmware image             | 45,972 bytes |
 
 *Note: REQ-027 (limit validation), REQ-028 (invalid configuration handling), and REQ-046 (NaN/Inf measurement rejection) are verified by the current BMS unit-test baseline.*
