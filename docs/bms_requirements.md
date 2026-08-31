@@ -637,14 +637,16 @@ data payload
 
 **Verification:** Unit test
 
-**Planned implementation:**
+**Implementation:**
 
 ```text
-src/drivers/can.c
-src/drivers/can.h
+src/bms/bms_can.c
+src/bms/bms_can.h
 ```
 
-or an equivalent BMS communication abstraction.
+The implementation provides a transport-independent BMS CAN
+communication abstraction. Physical CAN driver and transceiver
+integration are outside the scope of this software requirement.
 
 ---
 

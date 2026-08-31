@@ -12,7 +12,7 @@ INCLUDES="-I${ROOT_DIR}/src/bms"
 mkdir -p "${BUILD_DIR}"
 
 passed=0
-total=5
+total=7
 
 run_test()
 {
@@ -76,6 +76,20 @@ run_test \
     "${ROOT_DIR}/src/bms/bms_protection.c" \
     "${ROOT_DIR}/src/bms/bms_state.c" \
     "${ROOT_DIR}/src/bms/bms_manager.c" || exit 1
+
+run_test \
+    "BMS I2C abstraction" \
+    "test_bms_i2c" \
+    "${ROOT_DIR}/tests/unit/test_bms_i2c.c" \
+    "${ROOT_DIR}/src/bms/bms_measurement_device.c" \
+    "${ROOT_DIR}/src/bms/bms_measurements.c" || exit 1
+
+run_test \
+    "BMS CAN" \
+    "test_bms_can" \
+    "${ROOT_DIR}/tests/unit/test_bms_can.c" \
+    "${ROOT_DIR}/src/bms/bms_can.c" \
+    "${ROOT_DIR}/src/bms/bms_measurements.c" || exit 1
 
 echo
 echo "========================================"

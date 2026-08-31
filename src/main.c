@@ -20,6 +20,7 @@
 
 #define WDT_TIMEOUT_MS         10000U
 #define WDT_MONITOR_PERIOD_MS   5000U
+#define BMS_TASK_PERIOD_MS       5000U
 
 
 /* ------------------------------------------------------------
@@ -416,7 +417,7 @@ void vTaskBMS(void *pvParameters)
             index = 0U;
         }
 
-        vTaskDelay(pdMS_TO_TICKS(5000));
+        vTaskDelay(pdMS_TO_TICKS(BMS_TASK_PERIOD_MS));
     }
 }
 

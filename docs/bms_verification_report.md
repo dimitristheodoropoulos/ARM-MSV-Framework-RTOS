@@ -39,34 +39,24 @@ This document therefore distinguishes between:
 
 ## 2. Verification Baseline
 
-**Verification date:** 2026-08-28
+**Verification date:** 2026-08-30
 
 **Git baseline:**
 
 ```text
-724a7ea test: add BMS unit regression evidence
-```
-
-**Full commit:**
-
-```text
-724a7ea4317d36842e7fe2a62d1fdc13f422a4bd
+cc4a9d1
 ```
 
 **Branch:**
 
 ```text
-main
+feature/bms-i2c-measurement-abstraction
 ```
 
-**Repository state:** CLEAN
-
-The baseline commit adds the BMS unit-regression execution script and
-corresponding verification evidence while preserving the existing BMS
-implementation.
-
-The verification results in this document refer to the repository state at
-this baseline.
+The baseline commit adds the I2C measurement abstraction implementation,
+corresponding unit tests, and updates the BMS unit regression runner to include
+the new test target. The verification results in this document refer to the
+repository state at this baseline.
 
 ---
 
@@ -96,9 +86,6 @@ text    data    bss     dec     hex
 45972 bytes
 ```
 
-The firmware size recorded here supersedes the earlier value of 45384 bytes
-from the previous verification baseline.
-
 ---
 
 ## 4. Full Regression Verification
@@ -121,8 +108,8 @@ pytest -q
 
 **Runtime:** approximately 35 seconds
 
-This establishes a clean project-level regression result at the
-`724a7ea` baseline.
+This establishes a clean project-level regression result at the current
+baseline.
 
 ---
 
@@ -134,7 +121,7 @@ A dedicated BMS unit-test runner is included in:
 tests/run_bms_unit_tests.sh
 ```
 
-It independently builds and executes the five BMS unit-test targets:
+It independently builds and executes the seven BMS unit-test targets:
 
 ```text
 BMS measurements
@@ -142,6 +129,8 @@ BMS limits
 BMS protection
 BMS state
 BMS manager
+BMS I2C abstraction
+BMS CAN
 ```
 
 The regression was executed with:
@@ -154,7 +143,7 @@ Result:
 
 ```text
 ========================================
- BMS REGRESSION RESULT: 5/5 PASS
+ BMS REGRESSION RESULT: 7/7 PASS
 ========================================
 ```
 
@@ -213,7 +202,8 @@ Result:
 ```
 
 The tests cover voltage, current and temperature protection behaviour,
-including normal and boundary conditions.
+including normal and boundary conditions. Negative current tests verify
+magnitude‑based over-current detection.
 
 ### 5.4 BMS State
 
@@ -255,22 +245,100 @@ Result:
 [PASS] BMS manager
 ```
 
-### 5.6 BMS Regression Summary
+### 5.6 BMS I2C Abstraction
+
+The I2C measurement abstraction unit suite verifies the generic measurement‑device
+interface independently of any specific hardware or sensor.
+
+Test coverage includes:
+
+* successful measurement acquisition through the abstraction
+* NACK error propagation
+* timeout error propagation
+* bus error propagation
+* arbitration error propagation
+* communication failure does not produce valid measurement
+* null device rejection
+* null measurement rejection
+* success callback without VALID status is rejected
+* null read callback rejection
+
+Result:
 
 ```text
-BMS measurements    PASS
-BMS limits          PASS
-BMS protection      PASS
-BMS state           PASS
-BMS manager         PASS
-
-Overall: 5/5 PASS
+[BMS I2C ABSTRACTION UNIT] Running tests...
+[BMS I2C ABSTRACTION UNIT] 22/22 tests passed.
+[PASS] BMS I2C abstraction
 ```
 
-The detailed execution evidence is recorded in:
+**Important:** This verifies the generic software abstraction and communication‑failure
+semantics. It does **not** verify physical I2C hardware, a specific sensor,
+register map, ADC, or target‑device integration.
+
+### 5.7 BMS CAN
+
+The CAN unit suite verifies the transport‑independent BMS CAN
+representation, encoding, decoding and malformed‑frame handling.
+
+Test coverage includes:
+
+* CAN frame raw‑byte encoding
+* normal and negative current/temperature encoding
+* CAN frame construction
+* faulty‑frame construction
+* CAN state and fault encoding
+* NULL input handling
+* frame validation
+* CAN base‑ID configuration
+* rounding behaviour
+* value clamping
+* invalid DLC rejection
+* invalid CAN ID rejection
+* invalid state/fault rejection
+* boundary round‑trip behaviour
+
+Result:
 
 ```text
-docs/verification/bms_unit_regression_2026-08-28.txt
+[BMS CAN UNIT] Running tests...
+[PASS] raw_bytes_normal
+[PASS] raw_bytes_negative_current
+[PASS] raw_bytes_negative_temperature
+[PASS] build_frame_success_normal
+[PASS] build_frame_faulty
+[PASS] build_frame_negative_current
+[PASS] build_frame_negative_temperature
+[PASS] build_frame_state_and_fault
+[PASS] build_frame_null_inputs
+[PASS] decode_frame_null_inputs
+[PASS] frame_is_valid
+[PASS] set_base_id
+[PASS] build_frame_rounding_negative
+[PASS] clamp_values
+[PASS] invalid_dlc
+[PASS] invalid_id
+[PASS] invalid_state_and_fault
+[PASS] roundtrip_boundaries
+[BMS CAN UNIT] All tests passed.
+[PASS] BMS CAN
+```
+
+**Scope note:** This verifies the software‑level CAN frame representation,
+encoding/decoding and error handling. It does **not** verify a physical CAN
+controller, transceiver, bus timing, electrical signalling, or target hardware.
+
+### 5.8 BMS Regression Summary
+
+```text
+BMS measurements        PASS
+BMS limits              PASS
+BMS protection          PASS
+BMS state               PASS
+BMS manager             PASS
+BMS I2C abstraction     PASS
+BMS CAN                 PASS
+
+Overall: 7/7 PASS
 ```
 
 ---
@@ -285,19 +353,22 @@ src/bms/
 ├── bms_measurements.c / .h
 ├── bms_protection.c / .h
 ├── bms_state.c / .h
-└── bms_limits.c / .h
+├── bms_limits.c / .h
+├── bms_measurement_device.c / .h
+└── bms_can.c / .h
 ```
 
-The implementation therefore contains a dedicated limits module in addition to
-the measurement, protection, state and manager modules.
+The implementation therefore includes:
+
+- measurement, limits, protection, state and manager modules
+- a transport‑independent CAN representation and codec layer
+- a generic measurement‑device abstraction layer
 
 There are no separate dedicated:
 
 ```text
 bms_faults
 bms_diagnostics
-bms_can
-bms_i2c
 ```
 
 modules in the current BMS software foundation.
@@ -310,7 +381,7 @@ than a separate fault-management subsystem.
 ## 7. Requirement Status
 
 The following table records the audited status of all 64 requirements against
-the `724a7ea` baseline.
+the current baseline.
 
 | ID  | Status                         | Evidence / Gap                                                                                                                                                     |
 | --- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -345,17 +416,17 @@ the `724a7ea` baseline.
 | 029 | **IMPLEMENTED / NOT VERIFIED** | `print_bms_status()` provides status visibility, but there is no dedicated diagnostics layer and no independent diagnostics verification evidence.                 |
 | 030 | **IMPLEMENTED / NOT VERIFIED** | Fault information is observable through existing status output, but no dedicated fault-visibility interface has been verified.                                     |
 | 031 | **PENDING**                    | No dedicated fault-context interface is implemented.                                                                                                               |
-| 032 | **PENDING**                    | No CAN software abstraction is implemented.                                                                                                                        |
-| 033 | **PENDING**                    | No CAN frame representation is implemented.                                                                                                                        |
-| 034 | **PENDING**                    | No CAN frame encoding is implemented.                                                                                                                              |
-| 035 | **PENDING**                    | No CAN frame decoding is implemented.                                                                                                                              |
-| 036 | **PENDING**                    | No CAN-specific error handling is implemented.                                                                                                                     |
-| 037 | **PENDING**                    | CAN hardware/software integration required by the requirement is not currently implemented or explicitly excluded from the requirement baseline.                   |
-| 038 | **PENDING**                    | No I2C measurement abstraction is implemented within the BMS foundation.                                                                                           |
-| 039 | **PENDING**                    | No I2C error-propagation mechanism is implemented.                                                                                                                 |
-| 040 | **PENDING**                    | No measurement communication-failure handling is implemented.                                                                                                      |
+| 032 | **VERIFIED**                   | CAN communication is represented through the transport-independent `bms_can_frame_t` and build/decode APIs; unit-tested independently of physical CAN hardware.     |
+| 033 | **VERIFIED**                   | `bms_can_frame_t` provides CAN identifier, DLC and 8-byte payload representation; exercised by dedicated CAN unit tests.                                          |
+| 034 | **VERIFIED**                   | BMS voltage, current, temperature, state and fault data are encoded into the defined CAN payload; raw-byte unit tests verify the encoding.                        |
+| 035 | **VERIFIED**                   | Supported CAN payloads are decoded back into BMS measurements, state and fault; round-trip unit tests verify the decoding.                                        |
+| 036 | **VERIFIED**                   | Invalid NULL inputs, DLC, CAN ID and semantic state/fault values are deterministically rejected; dedicated CAN unit tests verify malformed-frame handling.          |
+| 037 | **VERIFIED**                   | Software-level CAN representation, encoding, decoding and malformed-frame handling are verified by unit tests; no physical CAN transceiver or bus validation is claimed. |
+| 038 | **VERIFIED**                   | Software abstraction verified through host unit testing. No physical I²C device or bus integration is claimed.                                                    |
+| 039 | **VERIFIED**                   | NACK, timeout, bus and arbitration errors are propagated through the measurement-device abstraction and verified independently by host unit tests.                |
+| 040 | **VERIFIED**                   | Failed measurement transactions force `BMS_MEAS_INVALID` and cannot be accepted as valid measurements; verified for all implemented communication failure classes. |
 | 041 | **VERIFIED**                   | BMS manager/task integration exists in the firmware while the core BMS modules remain independently testable.                                                      |
-| 042 | **IMPLEMENTED / NOT VERIFIED** | A periodic BMS task exists, but dedicated timing/periodicity verification evidence is not available.                                                               |
+| 042 | **VERIFIED**                   | QEMU runtime test `tests/test_bms_timing.py` observed four BMS updates with measured intervals of 5.000 s, 5.000 s and 4.983 s, within the accepted 4–6 s verification window. |
 | 043 | **VERIFIED**                   | Core BMS functionality is tested independently of the FreeRTOS scheduler through host-based unit tests.                                                            |
 | 044 | **VERIFIED**                   | Null and invalid input handling is explicitly exercised by the BMS unit suites.                                                                                    |
 | 045 | **VERIFIED**                   | Protection boundary behaviour is deterministic and covered by dedicated boundary tests.                                                                            |
@@ -364,14 +435,14 @@ the `724a7ea` baseline.
 | 048 | **VERIFIED**                   | Boundary-oriented tests cover voltage, current and temperature protection limits.                                                                                  |
 | 049 | **PENDING**                    | No dedicated simultaneous multi-fault combination test suite exists.                                                                                               |
 | 050 | **VERIFIED**                   | Manager tests exercise the measurement → protection → state path end-to-end at the software-module level.                                                          |
-| 051 | **VERIFIED**                   | 17/17 project regression tests pass via `make test` (`pytest -q`).                                                                                                 |
+| 051 | **VERIFIED**                   | 18/18 project regression tests pass via `make test` (`pytest -q`).                                                                                                 |
 | 052 | **VERIFIED**                   | Host-based unit tests provide software-level verification of the BMS core without requiring target hardware.                                                       |
 | 053 | **IMPLEMENTED / NOT VERIFIED** | This report provides manual requirement-to-evidence traceability, but traceability is not automatically enforced by the test infrastructure.                       |
 | 054 | **PENDING**                    | Current BMS unit-test cases do not systematically embed the corresponding requirement IDs.                                                                         |
 | 055 | **VERIFIED**                   | Unimplemented functionality is explicitly identified as `PENDING` rather than being represented as verified functionality.                                         |
 | 056 | **VERIFIED**                   | The BMS foundation is implemented as modular C components with defined headers and source modules.                                                                 |
 | 057 | **VERIFIED**                   | Measurement, limits, protection, state and manager responsibilities are separated across modules.                                                                  |
-| 058 | **IMPLEMENTED / NOT VERIFIED** | No static-analysis execution result is recorded as part of this baseline evidence.                                                                                 |
+| 058 | **VERIFIED**                   | GCC static analysis executed on all 7 BMS production modules using `arm-none-eabi-gcc` with `-std=c11 -Wall -Wextra -Werror -fanalyzer`; all 7 modules passed with zero diagnostics. |
 | 059 | **VERIFIED**                   | Defensive null/invalid-input checks exist and are exercised by unit tests.                                                                                         |
 | 060 | **VERIFIED**                   | The verification and regression procedures are reproducible through repository scripts/Make targets, including `make test` and the dedicated BMS unit runner.      |
 | 061 | **VERIFIED**                   | The tested BMS core behaviour is deterministic for identical inputs.                                                                                               |
@@ -383,26 +454,26 @@ the `724a7ea` baseline.
 
 ## 8. Verification Summary
 
-The audited requirement status remains:
+The audited requirement status is:
 
-| Status                         |  Count |
-| ------------------------------ | -----: |
-| **VERIFIED**                   | **37** |
-| **IMPLEMENTED / NOT VERIFIED** |  **8** |
-| **PENDING**                    | **19** |
-| **OUT-OF-SCOPE**               |  **0** |
+| Status                         | Count |
+| ------------------------------ | ----: |
+| **VERIFIED**                   | **48** |
+| **IMPLEMENTED / NOT VERIFIED** | **6** |
+| **PENDING**                    | **10** |
+| **OUT-OF-SCOPE**               | **0** |
 | **TOTAL**                      | **64** |
 
 Therefore:
 
 ```text
-37 / 64 requirements VERIFIED
+48 / 64 requirements VERIFIED
 ```
 
 or:
 
 ```text
-57.8% of the defined requirements verified
+75.0% of the defined requirements verified
 ```
 
 The remaining requirements are not treated as verified merely because related
@@ -449,12 +520,6 @@ Result:
 17 passed in 34.98s
 ```
 
-Evidence file:
-
-```text
-docs/verification/full_pytest_regression_2026-08-28.txt
-```
-
 ### 9.3 BMS unit regression
 
 Command:
@@ -466,28 +531,54 @@ Command:
 Result:
 
 ```text
-5/5 PASS
+7/7 PASS
 ```
-
-Evidence file:
-
-```text
-docs/verification/bms_unit_regression_2026-08-28.txt
-```
-
-### 9.4 BMS test targets
 
 The dedicated regression executes:
 
 ```text
-test_bms_measurements
-test_bms_limits
-test_bms_protection
-test_bms_state
-test_bms_manager
+test_bms_measurements    PASS
+test_bms_limits          PASS
+test_bms_protection      PASS
+test_bms_state           PASS
+test_bms_manager         PASS
+test_bms_i2c             PASS
+test_bms_can             PASS
 ```
 
-All five targets pass at the baseline.
+### 9.4 I2C abstraction test evidence
+
+The I2C measurement abstraction unit suite (`tests/unit/test_bms_i2c.c`)
+verifies:
+
+- generic measurement-device interface
+- success path with valid measurement
+- error propagation (NACK, timeout, bus, arbitration)
+- communication failure does not produce valid measurement
+- null device/measurement/callback rejection
+
+22/22 tests passed.
+
+**Scope note:** This verifies the generic software measurement-device abstraction
+and communication-failure semantics. It does **not** verify physical I2C
+hardware, a specific sensor, register map, ADC, or target-device integration.
+
+### 9.5 CAN verification evidence
+
+The CAN unit suite (`tests/unit/test_bms_can.c`) verifies:
+
+- CAN frame representation and validation
+- payload encoding/decoding for voltage, current, temperature, state and fault
+- encode/decode round‑trip behaviour
+- malformed‑frame rejection (invalid DLC, ID, state/fault values)
+- NULL input handling
+- value clamping and rounding
+
+All CAN unit tests pass (18 test functions).
+
+**Scope note:** This verifies the software‑level CAN frame representation,
+encoding/decoding and error handling. It does **not** verify physical CAN
+hardware, transceiver, bus timing or electrical signalling.
 
 ---
 
@@ -509,6 +600,12 @@ The verified software scope includes:
 * modular BMS core interfaces
 * host-based unit testing
 * project-level regression integration
+* generic measurement-device abstraction
+* communication error propagation
+* communication failure handling
+* transport‑independent CAN representation and codec
+* CAN frame encoding/decoding
+* malformed‑frame rejection
 
 The following are **not established by this verification baseline**:
 
@@ -518,7 +615,7 @@ The following are **not established by this verification baseline**:
 * contactor control
 * charger control
 * CAN hardware integration
-* I2C hardware integration
+* physical I2C hardware integration
 * hardware-in-the-loop validation
 * production battery-pack validation
 * electrical safety validation
@@ -536,9 +633,9 @@ The BMS v1.0 baseline is considered:
 
 **VERIFIED SOFTWARE FOUNDATION — NOT A PRODUCTION BATTERY MANAGEMENT SYSTEM**
 
-The `35/64` verification result applies specifically to the implemented
-software-domain requirements and objective evidence available at Git baseline
-`724a7ea`.
+The `48/64` verification result applies specifically to the implemented
+software-domain requirements and objective evidence available at the current
+baseline.
 
 The result does not claim verification of requirements for which the required
 implementation or verification evidence is absent.
@@ -582,16 +679,13 @@ BMS baseline:
 v1.0 Software Foundation
 
 Git branch:
-main
+feature/bms-i2c-measurement-abstraction
 
 Git commit:
-724a7ea4317d36842e7fe2a62d1fdc13f422a4bd
-
-Commit:
-test: add BMS unit regression evidence
+5e3b03f7a887fe150ac39cb6b8e44c89afc64ccb
 
 Verification date:
-2026-08-28
+2026-08-30
 
 Firmware build:
 PASS
@@ -600,22 +694,22 @@ Firmware size:
 45972 bytes
 
 BMS unit regression:
-5/5 PASS
+7/7 PASS
 
 Full project regression:
-17/17 PASS
+18/18 PASS
 
 Requirements:
 64 total
 
 Verified:
-37
+48
 
 Implemented / Not Verified:
-8
+6
 
 Pending:
-19
+10
 
 Out-of-Scope:
 0
@@ -623,3 +717,49 @@ Out-of-Scope:
 Verification classification:
 VERIFIED SOFTWARE FOUNDATION
 NOT A PRODUCTION BATTERY MANAGEMENT SYSTEM
+```
+
+---
+
+### Verification of counts
+
+To verify the counts in the requirement status table, run the following Python script and confirm the output matches:
+
+```bash
+cd ~/ARM-MSV-Framework-RTOS
+
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+text = Path("docs/bms_verification_report.md").read_text()
+
+rows = re.findall(
+    r'^\|\s*(\d+)\s*\|\s*\*\*(.*?)\*\*\s*\|',
+    text,
+    re.MULTILINE
+)
+
+from collections import Counter
+
+c = Counter(status.strip() for _, status in rows)
+
+print("Requirement rows:", len(rows))
+print()
+for k, v in c.items():
+    print(f"{k}: {v}")
+print()
+print("IDs:", [int(x[0]) for x in rows])
+PY
+```
+
+Expected output:
+
+```text
+Requirement rows: 64
+
+VERIFIED: 48
+IMPLEMENTED / NOT VERIFIED: 6
+PENDING: 10
+
+IDs: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
