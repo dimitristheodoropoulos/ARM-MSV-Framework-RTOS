@@ -290,6 +290,7 @@ arm-none-eabi-size firmware.elf
 [LINKING] firmware.elf
 
 text    data    bss     dec     hex
+
 32060   84      10908   43052   a82c
 ```
 
@@ -323,9 +324,9 @@ Run the complete regression suite:
 pytest -q
 ```
 
-### Current verification status
+### Current v2.6 QEMU verification status
 
-Following the introduction of the interrupt-driven UART RX path, the latest clean-build regression run reports:
+Following the introduction of the interrupt-driven UART RX path, the latest clean-build full QEMU regression run reports:
 
 ```text
 8 passed, 9 failed
@@ -354,7 +355,7 @@ UART hardware FIFO
         ↓
 UART0_IRQHandler()
         ↓
-software RX ring buffer
+Software RX Ring Buffer
         ↓
 uart_getc()
         ↓
@@ -375,13 +376,20 @@ The implementation deliberately avoids calling FreeRTOS APIs from the UART ISR.
 
 The issue is currently being investigated and the interrupt-driven RX implementation is **not yet considered regression-closed**.
 
+### Verification status interpretation
+
+The current `8 passed, 9 failed` result is the **current full-project QEMU regression status** following the UART RX change.
+
+It must not be confused with the separate BMS v1.0 verification baseline documented below.
+
 The verification workflow deliberately distinguishes between:
 
 1. Firmware build correctness.
 2. Individual test behaviour.
-3. Full-suite regression status.
-4. End-to-end QEMU runtime behaviour.
-5. Known verification gaps.
+3. Full-project regression status.
+4. BMS-specific verification evidence.
+5. End-to-end QEMU runtime behaviour.
+6. Known verification gaps.
 
 ---
 
@@ -610,9 +618,9 @@ Generated Verilator build artifacts are intentionally excluded from Git.
 
 # 🔋 BMS Software Foundation v1.0
 
-The repository includes a verified BMS software foundation for ARM Cortex-M3
-firmware development. The implementation provides battery-oriented measurement,
-protection, state-management and orchestration logic.
+The repository includes a verified BMS software foundation for ARM Cortex-M3 firmware development.
+
+The implementation provides battery-oriented measurement, protection, state-management and orchestration logic.
 
 The BMS v1.0 verification baseline is documented in:
 
@@ -620,42 +628,59 @@ The BMS v1.0 verification baseline is documented in:
 docs/bms_verification_report.md
 ```
 
-### Verification baseline
+### BMS v1.0 Verification Baseline
 
-| Metric                     |       Result |
-| -------------------------- | -----------: |
-| Requirements assessed      |           64 |
-| VERIFIED                   |           48 |
-| IMPLEMENTED / NOT VERIFIED |            6 |
-| PENDING                    |           10 |
-| OUT-OF-SCOPE               |            0 |
-| BMS unit regression        |     7/7 PASS |
-| Full project regression    |    18/18 PASS |
-| Firmware image             | 45,972 bytes |
+| Metric                               |       Result |
+| ------------------------------------ | -----------: |
+| Requirements assessed                |           64 |
+| VERIFIED                             |           48 |
+| IMPLEMENTED / NOT VERIFIED           |            6 |
+| PENDING                              |           10 |
+| OUT-OF-SCOPE                         |            0 |
+| BMS unit regression                  |     7/7 PASS |
+| BMS verification regression baseline |   18/18 PASS |
+| Firmware image                       | 45,972 bytes |
+
+**Important:** The `18/18 PASS` result above is the regression evidence associated with the **BMS v1.0 verification baseline**. It is not the current full-project QEMU regression result.
+
+The current full-project QEMU regression status is reported separately in the v2.6 UART verification section and currently stands at:
+
+```text
+8 passed, 9 failed
+```
+
+The current failures are associated with the interrupt-driven UART RX command-stream regression.
 
 *Note: REQ-027 (limit validation), REQ-028 (invalid configuration handling), and REQ-046 (NaN/Inf measurement rejection) are verified by the current BMS unit-test baseline.*
 
-The verified scope currently includes:
+### BMS Verified Scope
 
-* measurement representation and validity handling
-* voltage, current and temperature protection evaluation
-* protection boundary verification
-* BMS fault and state transitions
-* BMS manager orchestration
-* FreeRTOS integration
-* host-based unit testing
-* deterministic core behaviour
-* modular BMS architecture
+The verified BMS scope currently includes:
 
-The current baseline does **not** claim:
+* Measurement representation and validity handling.
+* Voltage, current and temperature protection evaluation.
+* Protection boundary verification.
+* BMS fault and state transitions.
+* BMS manager orchestration.
+* FreeRTOS integration.
+* Host-based unit testing.
+* Deterministic core behaviour.
+* Modular BMS architecture.
+* Software-level CAN representation, encoding, decoding and malformed-frame handling.
+* Software-level I2C measurement-device abstraction and communication-error propagation.
 
-* physical battery-pack validation
-* cell-level monitoring or balancing
-* contactor or charger control
-* CAN/I2C hardware integration
-* hardware-in-the-loop validation
-* production BMS validation
-* functional-safety certification
+### BMS Verification Boundaries
+
+The current BMS baseline does **not** claim:
+
+* Physical battery-pack validation.
+* Cell-level monitoring or balancing.
+* Contactor or charger control.
+* Physical CAN bus integration.
+* Physical I2C device integration.
+* Hardware-in-the-loop validation.
+* Production BMS validation.
+* Functional-safety certification.
 
 The BMS verification report deliberately distinguishes:
 
@@ -667,8 +692,9 @@ Tested
 Verified
 ```
 
-Only requirements with sufficient implementation and verification evidence are
-classified as **VERIFIED**.
+Only requirements with sufficient implementation and verification evidence are classified as **VERIFIED**.
+
+The BMS verification score therefore represents the **audited software-foundation scope**, not production battery-system qualification.
 
 ---
 
@@ -694,6 +720,7 @@ classified as **VERIFIED**.
 * Software recovery architecture.
 * `.noinit` post-mortem diagnostic mechanism.
 * Interrupt-vector integration for UART0.
+* BMS software foundation and its documented v1.0 verification baseline.
 
 ## Active Verification Item
 
@@ -868,7 +895,17 @@ The project intentionally follows this progression rather than claiming the fina
 
 The current project represents a **working ARM Cortex-M3 / FreeRTOS embedded firmware platform with register-level peripheral drivers, runtime diagnostics, fault recovery, TinyML integration, GNSS/NMEA processing, QEMU-based execution and automated verification infrastructure**.
 
+The project also contains a separately documented **BMS Software Foundation v1.0**, with `48/64` requirements classified as VERIFIED under its current software-level verification baseline.
+
 The immediate priority is **regression closure of the interrupt-driven UART RX implementation**.
+
+The current full-project QEMU regression result is:
+
+```text
+8 passed, 9 failed
+```
+
+This result is associated with the current UART RX regression and must not be interpreted as a failure of the separate BMS v1.0 verification baseline.
 
 Once the UART transport is stable, the next development stage is **external GNSS receiver integration**, using the existing interrupt-driven UART and GNSS/NMEA architecture as the foundation.
 
@@ -883,3 +920,40 @@ Planned hardware integration
 ```
 
 This status is deliberately maintained to ensure that the repository reflects actual engineering evidence rather than aspirational functionality.
+
+---
+
+## 📚 Verification Documentation
+
+The principal verification records are:
+
+```text
+docs/bms_verification_report.md
+docs/v2.6_runtime_verification.md
+```
+
+The BMS report documents the audited 64-requirement software-foundation baseline.
+
+The v2.6 runtime verification documentation records firmware runtime and QEMU evidence, while the current UART RX regression status is maintained explicitly in this README.
+
+---
+
+## ⚠️ Verification Scope Disclaimer
+
+This repository documents a **software and firmware engineering platform**, not a production-certified battery management system or safety-certified embedded product.
+
+Verification claims are intentionally limited to the implementation and test evidence available in the repository.
+
+In particular:
+
+```text
+Software implementation
+        ≠
+Hardware integration
+        ≠
+System qualification
+        ≠
+Production certification
+```
+
+Physical hardware behaviour, HIL validation, production battery-pack qualification, and functional-safety certification require additional engineering evidence outside the current repository scope.
