@@ -167,7 +167,6 @@ static void test_update_transition_fault_to_normal(void)
     assert(mgr.status.fault == BMS_FAULT_NONE);
 }
 
-
 /* BMS-REQ-050 — end-to-end BMS module integration */
 static void test_integration_measurement_to_state(void)
 {
@@ -219,6 +218,120 @@ static void test_integration_measurement_to_state(void)
     printf("[PASS] BMS-REQ-050 end-to-end module integration\n");
 }
 
+/*
+ * ========================================================
+ *  BMS-REQ-016: Multi‑fault integration tests
+ * ========================================================
+ */
+
+static void test_req016_multifault_manager_integration(void)
+{
+    bms_manager_t mgr;
+    bms_limits_t limits = default_limits();
+
+    bms_manager_init(&mgr, &limits);
+
+    /*
+     * BMS-REQ-016:
+     * Multiple protection conditions must be represented
+     * simultaneously at manager level.
+     *
+     * Active conditions:
+     *   - over-voltage
+     *   - over-current
+     *   - over-temperature
+     *
+     * The manager must preserve all three in fault_mask,
+     * while the legacy primary protection API must retain
+     * deterministic priority and select over-voltage.
+     */
+    bms_measurements_t m =
+        make_valid_measurements(55.0f, 21.0f, 61.0f);
+
+    bms_manager_update(&mgr, &m);
+
+    assert((mgr.fault_mask & BMS_FAULT_MASK_OVER_VOLTAGE) != 0u);
+    assert((mgr.fault_mask & BMS_FAULT_MASK_OVER_CURRENT) != 0u);
+    assert((mgr.fault_mask & BMS_FAULT_MASK_OVER_TEMPERATURE) != 0u);
+
+    assert(mgr.fault_mask ==
+           (BMS_FAULT_MASK_OVER_VOLTAGE |
+            BMS_FAULT_MASK_OVER_CURRENT |
+            BMS_FAULT_MASK_OVER_TEMPERATURE));
+
+    /* Primary protection remains deterministic. */
+    assert(mgr.protection == BMS_PROTECTION_OVER_VOLTAGE);
+
+    /* Existing state/fault pipeline remains deterministic. */
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_OVERVOLTAGE);
+
+    /*
+     * Recovery must clear the multi-fault representation as well
+     * as the primary protection/state result.
+     */
+    m = make_valid_measurements(48.0f, 10.0f, 25.0f);
+    bms_manager_update(&mgr, &m);
+
+    assert(mgr.fault_mask == BMS_FAULT_MASK_NONE);
+    assert(mgr.protection == BMS_PROTECTION_NORMAL);
+    assert(mgr.status.state == BMS_STATE_NORMAL);
+    assert(mgr.status.fault == BMS_FAULT_NONE);
+
+    printf("[PASS] BMS-REQ-016 manager multi-fault integration\n");
+}
+
+static void test_req016_manager_multiple_fault_combinations(void)
+{
+    bms_manager_t mgr;
+    bms_limits_t limits = default_limits();
+
+    bms_manager_init(&mgr, &limits);
+
+    /*
+     * Under-voltage + under-temperature.
+     */
+    bms_measurements_t m =
+        make_valid_measurements(39.0f, 10.0f, -21.0f);
+
+    bms_manager_update(&mgr, &m);
+
+    assert(mgr.fault_mask ==
+           (BMS_FAULT_MASK_UNDER_VOLTAGE |
+            BMS_FAULT_MASK_UNDER_TEMPERATURE));
+
+    assert((mgr.fault_mask & BMS_FAULT_MASK_UNDER_VOLTAGE) != 0u);
+    assert((mgr.fault_mask & BMS_FAULT_MASK_UNDER_TEMPERATURE) != 0u);
+
+    /*
+     * Primary protection remains under-voltage because
+     * voltage has higher priority than temperature.
+     */
+    assert(mgr.protection == BMS_PROTECTION_UNDER_VOLTAGE);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_UNDERVOLTAGE);
+
+    /*
+     * Current + under-temperature.
+     */
+    m = make_valid_measurements(48.0f, 21.0f, -21.0f);
+
+    bms_manager_update(&mgr, &m);
+
+    assert(mgr.fault_mask ==
+           (BMS_FAULT_MASK_OVER_CURRENT |
+            BMS_FAULT_MASK_UNDER_TEMPERATURE));
+
+    assert((mgr.fault_mask & BMS_FAULT_MASK_OVER_CURRENT) != 0u);
+    assert((mgr.fault_mask & BMS_FAULT_MASK_UNDER_TEMPERATURE) != 0u);
+
+    assert(mgr.protection == BMS_PROTECTION_OVER_CURRENT);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_OVERCURRENT);
+
+    printf("[PASS] BMS-REQ-016 manager fault combinations\n");
+}
+
 static void test_null_arguments(void)
 {
     bms_manager_t mgr;
@@ -229,6 +342,45 @@ static void test_null_arguments(void)
     bms_manager_init(&mgr, 0);
     bms_manager_update(0, &m);
     bms_manager_update(&mgr, 0);
+}
+
+
+static void test_req027_manager_accepts_valid_limits(void)
+{
+    bms_manager_t mgr;
+    bms_limits_t limits = default_limits();
+
+    bms_manager_init(&mgr, &limits);
+
+    assert(mgr.limits_valid == 1);
+}
+
+static void test_req028_manager_rejects_invalid_limits(void)
+{
+    bms_manager_t mgr;
+    bms_limits_t limits = default_limits();
+    limits.min_voltage = limits.max_voltage;
+
+    bms_manager_init(&mgr, &limits);
+
+    assert(mgr.limits_valid == 0);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_INVALID_MEASUREMENT);
+    assert(mgr.fault_mask == BMS_FAULT_MASK_NONE);
+
+    bms_measurements_t measurements =
+        make_valid_measurements(48.0f, 5.0f, 25.0f);
+
+    bms_manager_update(&mgr, &measurements);
+
+    /*
+     * Invalid configuration must remain rejected; the manager must
+     * not execute the normal protection pipeline.
+     */
+    assert(mgr.limits_valid == 0);
+    assert(mgr.status.state == BMS_STATE_FAULT);
+    assert(mgr.status.fault == BMS_FAULT_INVALID_MEASUREMENT);
+    assert(mgr.fault_mask == BMS_FAULT_MASK_NONE);
 }
 
 int main(void)
@@ -252,8 +404,18 @@ int main(void)
 
     test_integration_measurement_to_state();
 
+    /* REQ-016 tests */
+    test_req016_multifault_manager_integration();
+    test_req016_manager_multiple_fault_combinations();
+
     test_null_arguments();
     printf("[PASS] null_arguments\n");
+
+    test_req027_manager_accepts_valid_limits();
+    printf("[PASS] BMS-REQ-027 manager accepts valid limits\n");
+
+    test_req028_manager_rejects_invalid_limits();
+    printf("[PASS] BMS-REQ-028 manager rejects invalid limits\n");
 
     printf("[BMS MANAGER UNIT] All tests passed.\n");
     return 0;

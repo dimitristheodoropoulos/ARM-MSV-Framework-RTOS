@@ -15,8 +15,10 @@ typedef struct
 {
     bms_measurements_t measurements;      /* Latest raw measurements */
     bms_limits_t limits;                  /* Operational limits */
-    bms_protection_status_t protection;   /* Result of protection evaluation */
+    bms_protection_status_t protection;   /* Primary protection result */
+    bms_fault_mask_t fault_mask;          /* All active protection faults */
     bms_state_status_t status;            /* Final system state + fault */
+    int limits_valid;                     /* 1 when protection limits are valid */
 } bms_manager_t;
 
 /**
@@ -32,8 +34,9 @@ void bms_manager_init(bms_manager_t *manager, const bms_limits_t *limits);
  *
  * Runs the full pipeline:
  *   1. Stores the measurements.
- *   2. Evaluates protection.
- *   3. Updates system state.
+ *   2. Evaluates all protection conditions (fault_mask).
+ *   3. Evaluates deterministic primary protection (protection).
+ *   4. Updates system state.
  *
  * @param manager      Pointer to manager context
  * @param measurements Pointer to new measurements

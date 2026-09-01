@@ -41,6 +41,7 @@ SRCS = $(SRC_DIR)/arch/arm/syscalls.c \
        $(SRC_DIR)/bms/bms_measurements.c \
        $(SRC_DIR)/bms/bms_state.c \
        $(SRC_DIR)/bms/bms_protection.c \
+       $(SRC_DIR)/bms/bms_limits.c \
        $(SRC_DIR)/bms/bms_manager.c \
        $(SRC_DIR)/bms/bms_can.c \
        $(SRC_DIR)/drivers/uart.c \
@@ -113,9 +114,19 @@ bms-test:
 		-o $(BMS_TEST_DIR)/test_bms_state
 
 	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_manager.c \
-		src/bms/bms_manager.c src/bms/bms_protection.c \
-		src/bms/bms_measurements.c src/bms/bms_state.c -lm \
+		src/bms/bms_manager.c src/bms/bms_limits.c \
+		src/bms/bms_protection.c src/bms/bms_measurements.c \
+		src/bms/bms_state.c -lm \
 		-o $(BMS_TEST_DIR)/test_bms_manager
+
+	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_limits.c \
+		src/bms/bms_limits.c src/bms/bms_protection.c \
+		src/bms/bms_measurements.c -lm \
+		-o $(BMS_TEST_DIR)/test_bms_limits
+
+	@gcc $(BMS_HOST_CFLAGS) tests/unit/test_bms_can.c \
+		src/bms/bms_can.c src/bms/bms_measurements.c -lm \
+		-o $(BMS_TEST_DIR)/test_bms_can
 
 	@echo "[BMS TEST] Running host unit tests..."
 	@$(BMS_TEST_DIR)/test_bms_measurements
@@ -124,6 +135,8 @@ bms-test:
 	@$(BMS_TEST_DIR)/test_bms_protection
 	@$(BMS_TEST_DIR)/test_bms_state
 	@$(BMS_TEST_DIR)/test_bms_manager
+	@$(BMS_TEST_DIR)/test_bms_limits
+	@$(BMS_TEST_DIR)/test_bms_can
 	@echo "[BMS TEST] All BMS unit tests passed."
 
 
