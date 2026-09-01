@@ -39,24 +39,25 @@ This document therefore distinguishes between:
 
 ## 2. Verification Baseline
 
-**Verification date:** 2026-08-30
+**Verification date:** 2026-09-01
 
 **Git baseline:**
 
 ```text
-cc4a9d1
+c635142
 ```
 
 **Branch:**
 
 ```text
-feature/bms-i2c-measurement-abstraction
+feature/bms-software-foundation
 ```
 
-The baseline commit adds the I2C measurement abstraction implementation,
-corresponding unit tests, and updates the BMS unit regression runner to include
-the new test target. The verification results in this document refer to the
-repository state at this baseline.
+The baseline represents the integrated BMS Software Foundation state, including
+the BMS core modules, generic measurement-device abstraction, CAN software
+abstraction, corresponding unit tests, and the integrated BMS regression runner.
+The verification results in this document refer to the repository state at this
+baseline.
 
 ---
 
@@ -75,7 +76,7 @@ The firmware image reported by the build was:
 
 ```text
 text    data    bss     dec     hex
-34908      84   10980   45972   b394
+34912      84   10992   45988   b3a4
 ```
 
 **Build result:** PASS
@@ -83,7 +84,7 @@ text    data    bss     dec     hex
 **Firmware image size:**
 
 ```text
-45972 bytes
+45988 bytes
 ```
 
 ---
@@ -143,7 +144,7 @@ Result:
 
 ```text
 ========================================
- BMS REGRESSION RESULT: 7/7 PASS
+ BMS REGRESSION RESULT: 8/8 PASS
 ========================================
 ```
 
@@ -338,7 +339,7 @@ BMS manager             PASS
 BMS I2C abstraction     PASS
 BMS CAN                 PASS
 
-Overall: 7/7 PASS
+Overall: 8/8 PASS
 ```
 
 ---
@@ -400,7 +401,7 @@ the current baseline.
 | 013 | **VERIFIED**                   | Under-temperature detection is implemented and covered by boundary tests.                                                                                          |
 | 014 | **VERIFIED**                   | Temperature boundaries are explicitly tested at -20.0 °C and 60.0 °C and immediately outside those limits.                                                         |
 | 015 | **IMPLEMENTED / NOT VERIFIED** | Fault identifiers and fault propagation exist, but there is no dedicated fault-management layer or independent verification evidence for the complete requirement. |
-| 016 | **PENDING**                    | No simultaneous multi-fault representation is implemented/verified. The current protection API represents a single evaluated protection result.                    |
+| 016 | **VERIFIED** | `bms_fault_mask_t` provides independent bit flags for simultaneously active protection conditions. `bms_protection_evaluate_faults()` accumulates all active voltage, current and temperature protection faults into a single multi-fault mask. Dedicated protection tests cover two-fault, three-fault and all physically possible simultaneous combinations, with manager-level integration tests verifying propagation through the BMS pipeline. Fault persistence/latching is not claimed and remains covered separately by BMS-REQ-017. |
 | 017 | **IMPLEMENTED / NOT VERIFIED** | Fault-to-normal behaviour exists and is tested, but an explicit general fault-latching policy is not implemented/verified.                                         |
 | 018 | **VERIFIED**                   | Deterministic clearing to `NORMAL` is exercised by state and manager transition tests.                                                                             |
 | 019 | **PENDING**                    | No explicit critical-versus-diagnostic fault classification exists.                                                                                                |
@@ -410,9 +411,9 @@ the current baseline.
 | 023 | **PENDING**                    | No `BMS_STATE_RECOVERY` state is implemented.                                                                                                                      |
 | 024 | **VERIFIED**                   | Deterministic state transitions are exercised by the BMS state and manager test suites.                                                                            |
 | 025 | **PENDING**                    | No explicit handling/verification of invalid `bms_state_t` enumeration values.                                                                                     |
-| 026 | **PENDING** | `bms_limits_t` is currently defined within `bms_protection.h`, but the dedicated `bms_limits.c` / `bms_limits.h` limits module specified by the requirement is not implemented. |
-| 027 | **PENDING** | No `bms_limits_validate()` implementation or dedicated limits-validation test exists in the current BMS source/test set. |
-| 028 | **PENDING** | The current `bms_manager_init()` copies the supplied limits without validating their configuration or rejecting invalid combinations; no dedicated configuration fault/latching mechanism is implemented or verified. |
+| 026 | **VERIFIED** | Dedicated `bms_limits.h` / `bms_limits.c` module provides the BMS limits configuration and separates limits management from the protection implementation. The module is compiled into the firmware and exercised by dedicated limits unit tests. |
+| 027 | **VERIFIED** | `bms_limits_validate()` is implemented and dedicated unit tests verify valid configuration, NULL input, equal/reversed voltage limits, equal/reversed temperature limits, invalid current limits, NaN and infinity rejection. |
+| 028 | **VERIFIED** | `bms_manager_init()` validates the supplied limits and rejects invalid configurations. Dedicated manager tests verify acceptance of valid limits and rejection of invalid limits, including transition to `BMS_STATE_FAULT` with `BMS_FAULT_INVALID_MEASUREMENT` and no protection fault mask. |
 | 029 | **IMPLEMENTED / NOT VERIFIED** | `print_bms_status()` provides status visibility, but there is no dedicated diagnostics layer and no independent diagnostics verification evidence.                 |
 | 030 | **IMPLEMENTED / NOT VERIFIED** | Fault information is observable through existing status output, but no dedicated fault-visibility interface has been verified.                                     |
 | 031 | **PENDING**                    | No dedicated fault-context interface is implemented.                                                                                                               |
@@ -433,9 +434,9 @@ the current baseline.
 | 046 | **VERIFIED**                   | NaN, positive infinity and negative infinity measurement values are rejected by validation using finite-value checking; dedicated unit tests provide evidence.     |
 | 047 | **VERIFIED**                   | Automated BMS unit tests exist and are executable through `tests/run_bms_unit_tests.sh`.                                                                           |
 | 048 | **VERIFIED**                   | Boundary-oriented tests cover voltage, current and temperature protection limits.                                                                                  |
-| 049 | **VERIFIED** | Dedicated protection tests exercise simultaneous multi-fault combinations and verify deterministic priority: over-voltage, under-voltage, over-current, over-temperature and under-temperature. Impossible simultaneous over-/under-temperature is correctly excluded because temperature is represented by a single scalar measurement. |
+| 049 | **VERIFIED** | Dedicated protection tests exercise multiple simultaneously true protection conditions and verify deterministic evaluation priority: over-voltage, under-voltage, over-current, over-temperature and under-temperature. This verifies protection-condition evaluation and priority, not persistent multi-fault representation; impossible simultaneous over-/under-temperature is correctly excluded because temperature is represented by a single scalar measurement. |
 | 050 | **VERIFIED**                   | Manager tests exercise the measurement → protection → state path end-to-end at the software-module level.                                                          |
-| 051 | **VERIFIED**                   | 18/18 project regression tests pass via `make test` (`pytest -q`).                                                                                                 |
+| 051 | **VERIFIED**                   | 17/17 project regression tests pass via `make test` (`pytest -q`).                                                                                                 |
 | 052 | **VERIFIED**                   | Host-based unit tests provide software-level verification of the BMS core without requiring target hardware.                                                       |
 | 053 | **IMPLEMENTED / NOT VERIFIED** | This report provides manual requirement-to-evidence traceability, but traceability is not automatically enforced by the test infrastructure.                       |
 | 054 | **PENDING**                    | Current BMS unit-test cases do not systematically embed the corresponding requirement IDs.                                                                         |
@@ -458,22 +459,22 @@ The audited requirement status is:
 
 | Status                         | Count |
 | ------------------------------ | ----: |
-| **VERIFIED**                   | **51** |
+| **VERIFIED**                   | **53** |
 | **IMPLEMENTED / NOT VERIFIED** | **6** |
-| **PENDING**                    | **7** |
+| **PENDING**                    | **6** |
 | **OUT-OF-SCOPE**               | **0** |
 | **TOTAL**                      | **64** |
 
 Therefore:
 
 ```text
-51 / 64 requirements VERIFIED
+53 / 64 requirements VERIFIED
 ```
 
 or:
 
 ```text
-75.0% of the defined requirements verified
+76.6% of the defined requirements verified
 ```
 
 The remaining requirements are not treated as verified merely because related
@@ -497,7 +498,7 @@ Firmware image:
 
 ```text
 text    data    bss     dec     hex
-34908      84   10980   45972   b394
+34912      84   10992   45988   b3a4
 ```
 
 Result:
@@ -531,7 +532,7 @@ Command:
 Result:
 
 ```text
-7/7 PASS
+8/8 PASS
 ```
 
 The dedicated regression executes:
@@ -599,8 +600,6 @@ The verified software scope includes:
 * temperature protection evaluation
 * protection boundary behaviour
 * BMS state transitions
-* invalid configuration detection
-* invalid configuration latching
 * BMS manager orchestration
 * modular BMS core interfaces
 * host-based unit testing
@@ -638,7 +637,7 @@ The BMS v1.0 baseline is considered:
 
 **VERIFIED SOFTWARE FOUNDATION — NOT A PRODUCTION BATTERY MANAGEMENT SYSTEM**
 
-The `51/64` verification result applies specifically to the implemented
+The `53/64` verification result applies specifically to the implemented
 software-domain requirements and objective evidence available at the current
 baseline.
 
@@ -661,9 +660,8 @@ Recommended order:
    corresponding verification strategy.
 2. **Requirement 054:** systematically associate requirement IDs with test cases
    to improve automated traceability.
-3. **Requirement 058:** maintain the documented static-analysis baseline.
-4. Re-run the complete BMS and project regressions after each change.
-5. Update this report only when new implementation and objective evidence
+3. Re-run the complete BMS and project regressions after each change.
+4. Update this report only when new implementation and objective evidence
    justify a status change.
 
 No requirement should be promoted from `PENDING` or
@@ -682,37 +680,37 @@ BMS baseline:
 v1.0 Software Foundation
 
 Git branch:
-feature/bms-i2c-measurement-abstraction
+feature/bms-software-foundation
 
 Git commit:
-5e3b03f7a887fe150ac39cb6b8e44c89afc64ccb
+c635142
 
 Verification date:
-2026-08-30
+2026-09-01
 
 Firmware build:
 PASS
 
 Firmware size:
-45972 bytes
+45988 bytes
 
 BMS unit regression:
-7/7 PASS
+8/8 PASS
 
 Full project regression:
-18/18 PASS
+17/17 PASS
 
 Requirements:
 64 total
 
 Verified:
-48
+53
 
 Implemented / Not Verified:
 6
 
 Pending:
-10
+5
 
 Out-of-Scope:
 0
@@ -761,8 +759,8 @@ Expected output:
 ```text
 Requirement rows: 64
 
-VERIFIED: 51
+VERIFIED: 53
 IMPLEMENTED / NOT VERIFIED: 6
-PENDING: 7
+PENDING: 5
 
 IDs: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64]
