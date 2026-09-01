@@ -38,7 +38,7 @@ This document therefore distinguishes between:
 **Git baseline:**
 
 ```text
-7144e2b
+b8e19c8781c3ddd1a16063e15b8299131b4d34e9
 ```
 
 **Branch:**
@@ -339,7 +339,7 @@ BMS manager             PASS
 BMS I2C abstraction     PASS
 BMS CAN                 PASS
 
-BMS unit suites:        7/7 PASS
+BMS unit suites:        8/8 PASS
 Overall:                PASS
 ```
 
@@ -427,7 +427,7 @@ The following table records the audited status of all 64 requirements against th
 | 039 | **VERIFIED**                   | NACK, timeout, bus and arbitration errors are propagated through the measurement-device abstraction and verified independently by host unit tests.                                                                                                                                                                                                                                                                                                                                                                                           |
 | 040 | **VERIFIED**                   | Failed measurement transactions force `BMS_MEAS_INVALID` and cannot be accepted as valid measurements; verified for all implemented communication failure classes.                                                                                                                                                                                                                                                                                                                                                                           |
 | 041 | **VERIFIED**                   | BMS manager/task integration exists in the firmware while the core BMS modules remain independently testable.                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| 042 | **VERIFIED**                   | QEMU runtime test `tests/test_bms_timing.py` observed four BMS updates with measured intervals of 5.000 s, 5.000 s and 4.983 s, within the accepted 4–6 s verification window.                                                                                                                                                                                                                                                                                                                                                               |
+| 042 | **IMPLEMENTED / NOT VERIFIED** | The BMS monitoring task executes periodically using the configured monitoring interval, but the current verification baseline does not contain the QEMU timing test `tests/test_bms_timing.py`. Periodic runtime timing therefore remains implemented but not independently verified at this baseline.                                                                                                                                                                                                                                                                                                                                                               |
 | 043 | **VERIFIED**                   | Core BMS functionality is tested independently of the FreeRTOS scheduler through host-based unit tests.                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | 044 | **VERIFIED**                   | Null and invalid input handling is explicitly exercised by the BMS unit suites.                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 045 | **VERIFIED**                   | Protection boundary behaviour is deterministic and covered by dedicated boundary tests.                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
@@ -468,7 +468,7 @@ The audited requirement status is:
 Therefore:
 
 ```text
-53 / 64 requirements VERIFIED
+52 / 64 requirements VERIFIED
 ```
 
 or:
@@ -543,7 +543,7 @@ test_bms_can                           PASS
 Result:
 
 ```text
-BMS unit suites: 7/7 PASS
+BMS unit suites: 8/8 PASS
 ```
 
 ### 9.4 I2C abstraction test evidence
@@ -634,7 +634,7 @@ The BMS v1.0 baseline is considered:
 
 **VERIFIED SOFTWARE FOUNDATION — NOT A PRODUCTION BATTERY MANAGEMENT SYSTEM**
 
-The `53/64` verification result applies specifically to the implemented software-domain requirements and objective evidence available at the current baseline.
+The `52/64` verification result applies specifically to the implemented software-domain requirements and objective evidence available at the current baseline.
 
 The result does not claim verification of requirements for which the required implementation or verification evidence is absent.
 
@@ -691,7 +691,7 @@ Git branch:
 feature/bms-software-foundation
 
 Git commit:
-7144e2b
+b8e19c8781c3ddd1a16063e15b8299131b4d34e9
 
 Verification date:
 2026-09-01
