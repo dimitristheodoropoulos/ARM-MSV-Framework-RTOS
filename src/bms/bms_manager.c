@@ -28,7 +28,7 @@ void bms_manager_init(bms_manager_t *manager, const bms_limits_t *limits)
         manager->protection = BMS_PROTECTION_INVALID_MEASUREMENT;
         manager->fault_mask = BMS_FAULT_MASK_NONE;
         manager->status.state = BMS_STATE_FAULT;
-        manager->status.fault = BMS_FAULT_INVALID_MEASUREMENT;
+        manager->status.fault = BMS_FAULT_INVALID_CONFIGURATION;   /* ← semantic fix */
     }
 }
 

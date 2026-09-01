@@ -344,6 +344,11 @@ static void test_null_arguments(void)
     bms_manager_update(&mgr, 0);
 }
 
+/*
+ * ========================================================
+ *  BMS-REQ-027 & BMS-REQ-028: Limits validation
+ * ========================================================
+ */
 
 static void test_req027_manager_accepts_valid_limits(void)
 {
@@ -359,27 +364,23 @@ static void test_req028_manager_rejects_invalid_limits(void)
 {
     bms_manager_t mgr;
     bms_limits_t limits = default_limits();
-    limits.min_voltage = limits.max_voltage;
+    limits.min_voltage = limits.max_voltage;   /* deliberately invalid */
 
     bms_manager_init(&mgr, &limits);
 
     assert(mgr.limits_valid == 0);
     assert(mgr.status.state == BMS_STATE_FAULT);
-    assert(mgr.status.fault == BMS_FAULT_INVALID_MEASUREMENT);
+    assert(mgr.status.fault == BMS_FAULT_INVALID_CONFIGURATION);   /* fixed */
     assert(mgr.fault_mask == BMS_FAULT_MASK_NONE);
 
+    /* Ensure that an update does not change the fault status */
     bms_measurements_t measurements =
         make_valid_measurements(48.0f, 5.0f, 25.0f);
-
     bms_manager_update(&mgr, &measurements);
 
-    /*
-     * Invalid configuration must remain rejected; the manager must
-     * not execute the normal protection pipeline.
-     */
     assert(mgr.limits_valid == 0);
     assert(mgr.status.state == BMS_STATE_FAULT);
-    assert(mgr.status.fault == BMS_FAULT_INVALID_MEASUREMENT);
+    assert(mgr.status.fault == BMS_FAULT_INVALID_CONFIGURATION);
     assert(mgr.fault_mask == BMS_FAULT_MASK_NONE);
 }
 
