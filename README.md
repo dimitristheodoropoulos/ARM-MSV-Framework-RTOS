@@ -633,15 +633,15 @@ docs/bms_verification_report.md
 | Metric                               |       Result |
 | ------------------------------------ | -----------: |
 | Requirements assessed                |           64 |
-| VERIFIED                             |           48 |
+| VERIFIED                             |           52 |
 | IMPLEMENTED / NOT VERIFIED           |            6 |
 | PENDING                              |           10 |
 | OUT-OF-SCOPE                         |            0 |
-| BMS unit regression                  |     7/7 PASS |
-| BMS verification regression baseline |   18/18 PASS |
-| Firmware image                       | 45,972 bytes |
+| BMS unit regression                  |     8/8 PASS |
+| BMS project regression               |   17/17 PASS |
+| Firmware image                       | 45,988 bytes |
 
-**Important:** The `18/18 PASS` result above is the regression evidence associated with the **BMS v1.0 verification baseline**. It is not the current full-project QEMU regression result.
+**Important:** The `8/8 PASS` result represents the BMS unit-test suites executed by `make test`. The `17/17 PASS` result represents the full project Pytest regression.
 
 The current full-project QEMU regression status is reported separately in the v2.6 UART verification section and currently stands at:
 
@@ -895,7 +895,7 @@ The project intentionally follows this progression rather than claiming the fina
 
 The current project represents a **working ARM Cortex-M3 / FreeRTOS embedded firmware platform with register-level peripheral drivers, runtime diagnostics, fault recovery, TinyML integration, GNSS/NMEA processing, QEMU-based execution and automated verification infrastructure**.
 
-The project also contains a separately documented **BMS Software Foundation v1.0**, with `48/64` requirements classified as VERIFIED under its current software-level verification baseline.
+The project also contains a separately documented **BMS Software Foundation v1.0**, with `52/64` requirements classified as VERIFIED under its current software-level verification baseline.
 
 The immediate priority is **regression closure of the interrupt-driven UART RX implementation**.
 
